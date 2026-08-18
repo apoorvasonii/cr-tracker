@@ -1,0 +1,217 @@
+import { normalize } from './strings'
+import { parseDateValue, toIsoDate } from './dates'
+import {
+  OVERRIDABLE_FIELDS,
+  makeNewRecord,
+  makeStatusFromSheetValue,
+  mapSheetStatusToProjectStatus,
+  stableFallbackId,
+} from './model'
+
+/**
+ * Resolves a raw sheet value to a status key, creating the status when it's new.
+ * The sheet is the source of the vocabulary; nothing is invented or substituted.
+ * Values the user dismissed stay unmapped ('') rather than becoming statuses.
+ */
+function resolveStatus(proj, rawValue, created) {
+  const raw = (rawValue ?? '').toString().trim()
+  if (!raw) return ''
+
+  const existingKey = mapSheetStatusToProjectStatus(proj, raw)
+  if (existingKey) return existingKey
+
+  const ignored = (proj.ignoredStatusValues || []).some((v) => normalize(v) === normalize(raw))
+  if (ignored) return ''
+
+  const status = makeStatusFromSheetValue(raw, proj.statusConfig)
+  proj.statusConfig.push(status)
+  created.push(status.label)
+  return status.key
+}
+
+/** Sheet values win, except on fields the user has manually overridden. */
+function upsertRecord(existing, incoming) {
+  // Source data, not user-editable, so it's refreshed unconditionally.
+  if ('rawSection' in incoming) existing.rawSection = incoming.rawSection
+  OVERRIDABLE_FIELDS.forEach((field) => {
+    if (!(field in incoming)) return
+    existing.sourceSnapshot = existing.sourceSnapshot || {}
+    existing.sourceSnapshot[field] = incoming[field]
+    if (existing.overrides && existing.overrides[field]) return // manual override wins
+    existing[field] = incoming[field]
+  })
+  if (incoming.custom) {
+    existing.custom = existing.custom || {}
+    existing.customSourceSnapshot = existing.customSourceSnapshot || {}
+    Object.keys(incoming.custom).forEach((colId) => {
+      existing.customSourceSnapshot[colId] = incoming.custom[colId]
+      if (existing.customOverrides && existing.customOverrides[colId]) return
+      existing.custom[colId] = incoming.custom[colId]
+    })
+  }
+}
+
+/**
+ * fetch -> apply mapping -> normalize -> upsert. Mutates `proj` and `crData`,
+ * which are always draft copies owned by the caller's state update.
+ *
+ * Never appends duplicates: matching is by recordId (projectId + a stable
+ * sourceRecordId), never by CR name.
+ */
+export function applySyncToProject(crData, proj, headers, rows) {
+  const warnings = []
+  const errors = []
+  proj.lastFetchedHeaders = headers
+  const m = proj.mapping
+
+  const emptyResult = (extra) => ({
+    success: false,
+    projectId: proj.id,
+    recordsFetched: rows.length,
+    recordsProcessed: 0,
+    recordsCreated: 0,
+    recordsUpdated: 0,
+    warnings,
+    errors,
+    ...extra,
+  })
+
+  if (!m.name) {
+    errors.push(
+      'No "Feature" column mapped yet — open "Connect & Configure Mapping" and map at least the Feature (CR Name) column.'
+    )
+    return emptyResult()
+  }
+
+  ;[
+    ['section', 'Status'],
+    ['action', 'Next Action On'],
+    ['planned', 'Planned End Date'],
+    ['brdDateCol', 'BRD Date'],
+    ['movedDateCol', 'Moved to Current Status'],
+    ['idColumn', 'Unique ID'],
+  ].forEach(([key, label]) => {
+    const col = m[key]
+    if (col && !headers.includes(col)) {
+      warnings.push(
+        `Mapped column "${col}" (for ${label}) was not found in the sheet — that field will be left blank until the mapping is fixed.`
+      )
+    }
+  })
+  ;(proj.customColumns || []).forEach((c) => {
+    if (c.type === 'sheet' && c.mappedColumn && !headers.includes(c.mappedColumn)) {
+      warnings.push(`Custom column "${c.label}"'s mapped sheet column "${c.mappedColumn}" was not found.`)
+    }
+  })
+
+  const hasUniqueIdColumn = !!(m.idColumn && headers.includes(m.idColumn))
+  const statusValuesSeen = new Set()
+  const statusesCreated = []
+  const fallbackIdCounts = {}
+  let created = 0
+  let updated = 0
+  let processed = 0
+
+  const computed = rows
+    .map((row) => {
+      const name = m.name ? (row[m.name] || '').toString().trim() : ''
+      if (!name) return null
+
+      const statusRaw = m.section ? row[m.section] : ''
+      const rawSection = (statusRaw ?? '').toString().trim()
+      if (rawSection) statusValuesSeen.add(rawSection)
+      const section = resolveStatus(proj, statusRaw, statusesCreated)
+
+      // Whose court the CR is in: matched against this project's own two party
+      // names, so nothing about either side is baked in.
+      const actionRaw = normalize(m.action ? row[m.action] : '')
+      const vendorMatch = proj.vendorName && actionRaw.includes(normalize(proj.vendorName))
+      const action = vendorMatch ? 'vendor' : 'client'
+
+      const planned = m.planned && row[m.planned] ? row[m.planned].toString() : '-'
+
+      const incoming = { name, section, action, planned, rawSection }
+
+      if (m.brdDateCol && row[m.brdDateCol]) {
+        const d = parseDateValue(row[m.brdDateCol], proj.dateOrder)
+        if (d) incoming.brdDate = toIsoDate(d)
+      }
+      if (m.movedDateCol && row[m.movedDateCol]) {
+        const d = parseDateValue(row[m.movedDateCol], proj.dateOrder)
+        if (d) incoming.movedDate = toIsoDate(d)
+      }
+
+      incoming.custom = {}
+      ;(proj.customColumns || []).forEach((c) => {
+        if (c.type === 'sheet' && c.mappedColumn) incoming.custom[c.id] = (row[c.mappedColumn] || '').toString()
+      })
+
+      // A mapped ID column can still be blank on individual rows; falling back per
+      // row keeps them distinct instead of collapsing them all onto one empty id.
+      const mappedId = hasUniqueIdColumn ? (row[m.idColumn] ?? '').toString().trim() : ''
+      const usedFallback = !mappedId
+      const sourceRecordId = mappedId || stableFallbackId(m, row)
+      if (usedFallback) fallbackIdCounts[sourceRecordId] = (fallbackIdCounts[sourceRecordId] || 0) + 1
+
+      return { sourceRecordId, incoming, name, usedFallback }
+    })
+    .filter(Boolean)
+
+  computed.forEach(({ sourceRecordId, incoming, name, usedFallback }) => {
+    processed++
+    if (usedFallback && fallbackIdCounts[sourceRecordId] > 1) {
+      warnings.push(
+        `"${name}" could not be reliably distinguished from another row with the same Feature/Status/Planned End Date — configure a Unique ID Column to fix this.`
+      )
+    }
+    const recordId = proj.id + '::' + sourceRecordId
+    const existing = crData.find((r) => r.recordId === recordId)
+    if (existing) {
+      upsertRecord(existing, incoming)
+      updated++
+    } else {
+      crData.push(makeNewRecord(proj.id, sourceRecordId, recordId, incoming))
+      created++
+    }
+  })
+
+  proj.discoveredStatusValues = [...statusValuesSeen]
+
+  if (statusesCreated.length) {
+    warnings.push(
+      `Added ${statusesCreated.length} status${statusesCreated.length === 1 ? '' : 'es'} found in the sheet: ${statusesCreated.join(', ')}. Set their colour, order and global category under Configure → Statuses.`
+    )
+  }
+
+  const blankIds = hasUniqueIdColumn ? computed.filter((c) => c.usedFallback).length : 0
+  if (blankIds) {
+    warnings.push(
+      `${blankIds} row${blankIds === 1 ? '' : 's'} had an empty "${m.idColumn}" cell — those were matched on Feature/Status/Planned End Date instead. Fill the ID column in the sheet to make them stable.`
+    )
+  }
+
+  if (!hasUniqueIdColumn) {
+    warnings.push(
+      'This sheet has no configured Unique ID Column — records are matched using a stable combination of the Feature, Status, and Planned End Date columns instead. If a sheet can have two genuinely different rows with identical values in all three, they will not be told apart. Configure a Unique ID Column under Column Mapping if your sheet has one.'
+    )
+  }
+
+  return {
+    success: errors.length === 0,
+    projectId: proj.id,
+    recordsFetched: rows.length,
+    recordsProcessed: processed,
+    recordsCreated: created,
+    recordsUpdated: updated,
+    warnings,
+    errors,
+  }
+}
+
+/** Records the outcome of a sync attempt onto the project. */
+export function recordSyncOutcome(proj, result) {
+  proj.syncStatus = result.errors.length ? 'failed' : 'success'
+  proj.syncError = result.errors[0] || null
+  proj.lastSyncedAt = Date.now()
+  proj.lastSyncStats = result
+}

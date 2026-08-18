@@ -1,0 +1,225 @@
+import { useApp } from '../../state/AppContext'
+import {
+  deleteRow,
+  resetRowOverrides,
+  toggleRowFlag,
+  updateCustomFieldValue,
+  updateRow,
+  updateRowSection,
+} from '../../state/actions'
+import { categoryOf, getProjectById, getStatus } from '../../lib/model'
+import { computeAgeInState, computeOverallAge, parseDateValue } from '../../lib/dates'
+import StatusSelect from './StatusSelect'
+
+/** Past its planned end date and not yet in a "live" category status. */
+function isOverdue(row, statusCategoryId, dateOrder) {
+  // 'live' here is the default global-category id; a project that renames or removes
+  // it simply gets overdue highlighting on those rows too, which is harmless.
+  if (statusCategoryId === 'live') return false
+  const d = parseDateValue(row.planned, dateOrder)
+  if (!d) return false
+  const today = new Date()
+  today.setHours(0, 0, 0, 0)
+  return d < today
+}
+
+/** `customCols` is the column set for the current scope; a row's project may not have all of them. */
+export default function CrRow({ row, index, customCols, readOnly, compact }) {
+  const { state, update, showToast } = useApp()
+  const rowProj = getProjectById(state.projects, row.projectId)
+  if (!rowProj) return null
+
+  const s = getStatus(state.projects, row.section, row.projectId)
+  const overdue = isOverdue(row, categoryOf(state.globalCategories, s).id, rowProj.dateOrder)
+  const overallDisplay = computeOverallAge(row, state.display?.overallAgeUnit)
+  const overallComputed = !!parseDateValue(row.brdDate)
+  const ageDisplay = computeAgeInState(row)
+  const hasOverride = row.overrides && Object.values(row.overrides).some(Boolean)
+  const ownColsByLabel = new Map((rowProj.customColumns || []).map((c) => [c.label, c]))
+
+  const cell = `px-3 align-top ${compact ? 'py-1.5' : 'py-2.5'}`
+  const textCell = `${cell} text-center text-[12.5px]`
+
+  const reset = () => {
+    update(resetRowOverrides(row.recordId))
+    showToast('Row reset to last-synced Sheet values')
+  }
+
+  return (
+    <tr className={`border-b border-line/70 transition-colors ${overdue ? 'bg-red-50/50' : 'hover:bg-slate-50/60'}`}>
+      <td className={`${cell} relative`}>
+        {overdue && <span className="absolute inset-y-0 left-0 w-[3px] bg-amber-500" />}
+        <div className="text-[12.5px] text-ink-muted">{index}</div>
+        {overdue && <div className="mt-0.5 text-[9.5px] font-bold uppercase tracking-wide text-red-600">Overdue</div>}
+      </td>
+
+      {readOnly && (
+        <td className={cell}>
+          <span className="inline-block rounded-full bg-brand-50 px-2.5 py-1 text-[10.5px] font-semibold text-brand-700">
+            {rowProj.lobName}
+          </span>
+        </td>
+      )}
+
+      <td className={cell}>
+        <input
+          type="text"
+          className="w-full rounded-lg border border-transparent bg-transparent px-2 py-1.5 text-[13px] font-semibold
+                     text-ink outline-none transition-colors hover:border-line
+                     focus:border-brand-500 focus:bg-white focus:ring-2 focus:ring-brand-500/15
+                     read-only:hover:border-transparent"
+          value={row.name}
+          readOnly={readOnly}
+          onChange={(e) => update(updateRow(row.recordId, 'name', e.target.value))}
+        />
+      </td>
+
+      <td className={cell}>
+        <StatusSelect
+          value={row.section}
+          color={s.color}
+          disabled={readOnly}
+          options={[
+            // A row can sit on no status at all (dismissed sheet value, or its status
+            // was deleted); keep that visible rather than snapping it to another one.
+            ...(rowProj.statusConfig.some((st) => st.key === row.section)
+              ? []
+              : [{ value: row.section || '', label: s.label }]),
+            ...rowProj.statusConfig.map((st) => ({ value: st.key, label: st.label })),
+          ]}
+          onChange={(v) => update(updateRowSection(row.recordId, v))}
+        />
+      </td>
+
+      <td className={cell}>
+        <select
+          className="field-select w-full"
+          value={row.action}
+          disabled={readOnly}
+          onChange={(e) => update(updateRow(row.recordId, 'action', e.target.value))}
+        >
+          <option value="client">{rowProj.lobName}</option>
+          <option value="vendor">{rowProj.vendorName || 'Delivery Partner'}</option>
+        </select>
+      </td>
+
+      <td className={cell}>
+        <input
+          type="text"
+          className="field w-full"
+          value={row.planned}
+          readOnly={readOnly}
+          onChange={(e) => update(updateRow(row.recordId, 'planned', e.target.value))}
+        />
+      </td>
+
+      <td className={cell}>
+        <input
+          type="date"
+          className="field w-full"
+          value={row.brdDate || ''}
+          disabled={readOnly}
+          onChange={(e) => update(updateRow(row.recordId, 'brdDate', e.target.value))}
+        />
+      </td>
+
+      <td className={cell}>
+        <input
+          type="date"
+          className="field w-full"
+          value={row.movedDate || ''}
+          disabled={readOnly}
+          onChange={(e) => update(updateRow(row.recordId, 'movedDate', e.target.value))}
+        />
+      </td>
+
+      {/* Passthrough text can't honour the Weeks/Days toggle — say so rather than
+          letting the toggle look broken. */}
+      <td
+        className={`${textCell} ${
+          overallComputed ? 'text-ink-muted' : 'cursor-help italic text-ink-muted underline decoration-dotted decoration-ink-muted/40 underline-offset-4'
+        }`}
+        title={
+          overallComputed
+            ? undefined
+            : 'Text from the sheet, not calculated — map BRD Date (Configure → Connect & Configure Mapping) for this to compute and follow the Weeks/Days toggle.'
+        }
+      >
+        {overallDisplay}
+      </td>
+      <td className={`${textCell} font-bold ${ageDisplay === '-' ? 'italic font-normal text-ink-muted' : 'text-ink'}`}>
+        {ageDisplay}
+      </td>
+
+      {customCols.map((c) => {
+        const ownCol = ownColsByLabel.get(c.label)
+        if (!ownCol) {
+          return (
+            <td key={c.label} className={`${cell} text-ink-muted`}>
+              —
+            </td>
+          )
+        }
+        return (
+          <td key={c.label} className={cell}>
+            <input
+              type="text"
+              className="field w-full"
+              value={(row.custom && row.custom[ownCol.id]) || ''}
+              readOnly={readOnly}
+              onChange={(e) => update(updateCustomFieldValue(row.recordId, ownCol.id, e.target.value))}
+            />
+          </td>
+        )
+      })}
+
+      <td className={cell}>
+        <div className="flex flex-wrap gap-1">
+          {rowProj.flagConfig.map((f) => {
+            const active = (row.flags || []).includes(f.id)
+            return (
+              <label
+                key={f.id}
+                className={`chip ${active ? 'chip-active' : ''} ${readOnly ? 'cursor-default' : ''}`}
+                style={active ? { backgroundColor: f.color, borderColor: f.color } : undefined}
+                title={f.label}
+              >
+                <input
+                  type="checkbox"
+                  className="hidden"
+                  checked={active}
+                  disabled={readOnly}
+                  onChange={(e) => update(toggleRowFlag(row.recordId, f.id, e.target.checked))}
+                />
+                {f.symbol}
+              </label>
+            )
+          })}
+        </div>
+      </td>
+
+      <td className={cell}>
+        <div className="flex items-center gap-1">
+          {hasOverride && (
+            <button
+              className="rounded-lg border border-amber-300 bg-amber-50 px-2 py-1 text-[11px] font-semibold text-amber-800 hover:bg-amber-100"
+              title="Reset all manual overrides on this row back to the last synced Sheet values"
+              onClick={reset}
+            >
+              ↻
+            </button>
+          )}
+          {!readOnly && (
+            <button
+              className="rounded-lg px-2 py-1 text-[15px] text-ink-muted transition-colors hover:bg-red-50 hover:text-red-600"
+              title="Delete row"
+              onClick={() => update(deleteRow(row.recordId))}
+            >
+              ×
+            </button>
+          )}
+        </div>
+      </td>
+    </tr>
+  )
+}
