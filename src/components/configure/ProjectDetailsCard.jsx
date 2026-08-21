@@ -1,30 +1,16 @@
 import { useApp } from '../../state/AppContext'
-import { deleteProject, patchProject } from '../../state/actions'
+import { patchProject } from '../../state/actions'
 import ConfigCard from './ConfigCard'
 
 export default function ProjectDetailsCard() {
-  const { state, currentProject, update, showToast } = useApp()
-
-  const remove = () => {
-    if (state.projects.length <= 1) {
-      showToast('You need at least one project', true)
-      return
-    }
-    if (!confirm(`Delete project "${currentProject.lobName}" and all its CR rows? This cannot be undone.`)) return
-    const name = currentProject.lobName
-    update(deleteProject(currentProject.id))
-    showToast(`Project "${name}" deleted`)
-  }
+  // Deleting a project lives only in the top bar, so it can't be hit while
+  // someone is editing this card's fields.
+  const { currentProject, update } = useApp()
 
   return (
     <ConfigCard
       title="Project Details"
       sub="LOB name labels the client side of the tracker, display name titles the briefing, and the data source decides whether CRs come from a sheet."
-      action={
-        <button className="btn-danger btn-sm" onClick={remove}>
-          Delete project
-        </button>
-      }
     >
       <div className="grid gap-4 sm:grid-cols-2 lg:max-w-3xl lg:grid-cols-3">
         <label className="block">
