@@ -40,6 +40,7 @@ function migrateProject(p) {
   // Numeric sheet dates used to be read day-first for everyone.
   if (!p.dateOrder) p.dateOrder = 'dmy'
   if (!p.briefingHeader) p.briefingHeader = 'CR Tracker'
+  if (typeof p.briefingSubheader !== 'string') p.briefingSubheader = ''
 
   // Every project used to be sheet-backed; manual projects came later.
   if (!p.source) p.source = 'sheet'

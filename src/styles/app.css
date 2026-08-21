@@ -24,6 +24,7 @@
 
 .briefing .masthead { background: var(--grad-brand); color: #fff; padding: 30px 40px; border-radius: 12px; margin-bottom: 14px; box-shadow: var(--shadow-md); }
 .briefing .masthead h1 { margin: 0; font-size: 30px; font-weight: 800; letter-spacing: 0.3px; }
+.briefing .masthead .sub { margin-top: 7px; font-size: 14.5px; font-weight: 600; letter-spacing: 0.2px; opacity: 0.9; }
 
 .briefing .panel { background: var(--card); border-radius: 12px; overflow: hidden; border: 1px solid var(--line); margin-bottom: 14px; box-shadow: var(--shadow-sm); }
 .briefing .panel-head { background: var(--grad-brand); color: #fff; text-align: center; padding: 13px; font-size: 14px; font-weight: 800; letter-spacing: 1.6px; text-transform: uppercase; }

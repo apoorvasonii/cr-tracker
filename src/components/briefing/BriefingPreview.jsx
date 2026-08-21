@@ -1,6 +1,6 @@
 import { useApp } from '../../state/AppContext'
 import { actionColorOf, actionLabelOf, percentBase, scopedTiles, VENDOR_NAME } from '../../lib/model'
-import { computeAgeInState, computeOverallAge, formatPlanned } from '../../lib/dates'
+import { computeAgeInState, computeOverallAge, formatPlannedShort } from '../../lib/dates'
 import { tintOf, titleOf } from '../../lib/colors'
 import { toTitleCase } from '../../lib/strings'
 import {
@@ -88,7 +88,7 @@ function StatusSection({ state, group, showProjectName, ageUnit }) {
                       {actionLabel}
                     </span>
                   </td>
-                  <td className={r.planned === '-' ? 'planned tbd' : 'planned'}>{formatPlanned(r.planned, project.dateOrder)}</td>
+                  <td className={r.planned === '-' ? 'planned tbd' : 'planned'}>{formatPlannedShort(r.planned, project.dateOrder)}</td>
                   <td className={`center overall-age${overallDisplay === '-' ? ' dash' : ''}`}>{overallDisplay}</td>
                   <td className={`center age${ageDisplay === '-' ? ' dash' : ''}`}>{ageDisplay}</td>
                 </tr>
@@ -107,7 +107,7 @@ export default function BriefingPreview() {
   // is set to appear in the Briefing.
   const rows = briefingRows(state)
   const excluded = excludedFromBriefing(state)
-  const { displayTitle, headerLabel, lobLabel, vendorLabel } = briefingTitles(state)
+  const { displayTitle, headerLabel, subheaderLabel, lobLabel, vendorLabel } = briefingTitles(state)
   const tiles = scopedTiles(state)
   const base = percentBase(tiles)
 
@@ -115,6 +115,8 @@ export default function BriefingPreview() {
   const clientRows = rows.filter((r) => r.action === 'client')
   const vendorRows = rows.filter((r) => r.action === 'vendor')
   const bothRows = rows.filter((r) => r.action === 'both')
+  // Nothing pending on both sides means there's no such category to report.
+  const hasBoth = bothRows.length > 0
 
   return (
     // `briefing` scopes the email-mirroring stylesheet in styles/app.css.
@@ -123,6 +125,7 @@ export default function BriefingPreview() {
         <h1>
           {displayTitle} — {headerLabel}
         </h1>
+        {subheaderLabel && <div className="sub">{subheaderLabel}</div>}
       </div>
 
       <div className="panel">
@@ -156,7 +159,10 @@ export default function BriefingPreview() {
 
       <div className="panel">
         <div className="panel-head">Actionable Points</div>
-        <div className="team-grid">
+        <div
+          className="team-grid"
+          style={{ gridTemplateColumns: hasBoth ? 'auto 1fr auto 1fr auto 1fr' : 'auto 1fr auto 1fr' }}
+        >
           <div className="team-block">
             <div className="team-name red">{lobLabel.toUpperCase()}</div>
             <div className="team-n red">{clientRows.length}</div>
@@ -168,16 +174,20 @@ export default function BriefingPreview() {
             <div className="team-name blue">{vendorLabel.toUpperCase()}</div>
             <div className="team-n blue">{vendorRows.length}</div>
           </div>
-          <div className="breakdown">
+          <div className="breakdown" style={hasBoth ? undefined : { borderRight: 'none' }}>
             <Breakdown lines={actionableLines(state, vendorRows)} />
           </div>
-          <div className="team-block">
-            <div className="team-name violet">{`${lobLabel} + ${vendorLabel}`.toUpperCase()}</div>
-            <div className="team-n violet">{bothRows.length}</div>
-          </div>
-          <div className="breakdown" style={{ borderRight: 'none' }}>
-            <Breakdown lines={actionableLines(state, bothRows)} />
-          </div>
+          {hasBoth && (
+            <>
+              <div className="team-block">
+                <div className="team-name violet">{`${lobLabel} + ${vendorLabel}`.toUpperCase()}</div>
+                <div className="team-n violet">{bothRows.length}</div>
+              </div>
+              <div className="breakdown" style={{ borderRight: 'none' }}>
+                <Breakdown lines={actionableLines(state, bothRows)} />
+              </div>
+            </>
+          )}
         </div>
       </div>
 

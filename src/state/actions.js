@@ -137,6 +137,8 @@ export const toggleOverallMetricStatus = (id, statusKey, checked) =>
   withCurrentProject((proj) => {
     const m = proj.overallMetrics.find((x) => x.id === id)
     if (!m) return
+    // A tile switched over from a category or a typed number has no list yet.
+    if (!Array.isArray(m.statusKeys)) m.statusKeys = []
     if (checked) { if (!m.statusKeys.includes(statusKey)) m.statusKeys.push(statusKey) }
     else m.statusKeys = m.statusKeys.filter((k) => k !== statusKey)
   })

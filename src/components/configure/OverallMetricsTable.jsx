@@ -63,7 +63,11 @@ function DefinitionCell({ metric, proj, categories, update }) {
   }
 
   if (!proj.statusConfig.length) {
-    return <span className="text-[12px] text-ink-muted">No statuses yet — sync a sheet first</span>
+    return (
+      <span className="text-[12px] text-ink-muted">
+        No statuses yet — sync a sheet, or give a row a status on the tracker
+      </span>
+    )
   }
 
   return (
@@ -100,8 +104,9 @@ export default function OverallMetricsTable() {
         <div>
           <h2 className="card-title">Overall Status Tiles</h2>
           <p className="card-sub max-w-3xl">
-            Every tile in the Briefing’s Overall Status panel — Total, Live, In Pipeline and any others. The{' '}
-            <b className="font-semibold">first tile is the base</b> for the percentages shown on the rest.
+            Every tile in the Briefing’s Overall Status panel — Total, Live, In Pipeline and any others — is defined
+            the same way: set <b className="font-semibold">Counts</b> to “Chosen statuses” to say exactly which statuses
+            it adds up. The <b className="font-semibold">first tile is the base</b> for the percentages on the rest.
           </p>
         </div>
         <button className="btn btn-sm" onClick={() => update(addOverallMetric())}>

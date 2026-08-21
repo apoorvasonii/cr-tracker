@@ -151,6 +151,21 @@ export function formatPlanned(value, order = 'dmy') {
   return d ? formatDmy(d) : '-'
 }
 
+const MONTH_LABELS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
+
+/**
+ * The Briefing reads dates the way people say them — "21 Aug" — and only spells the
+ * year out when it isn't the current one, where leaving it off would mislead.
+ */
+export function formatPlannedShort(value, order = 'dmy') {
+  const raw = (value ?? '').toString().trim()
+  if (!raw || raw === '-') return '-'
+  const d = parseDateValue(raw, order)
+  if (!d) return '-'
+  const short = `${d.getDate()} ${MONTH_LABELS[d.getMonth()]}`
+  return d.getFullYear() === new Date().getFullYear() ? short : `${short} ${d.getFullYear()}`
+}
+
 /** Weeks count every day, weekends included: 7 calendar days is 1w. */
 export const DAYS_PER_WEEK = 7
 

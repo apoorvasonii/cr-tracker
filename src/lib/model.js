@@ -130,8 +130,10 @@ export function makeProject(lobName, displayName, existingProjects = [], source 
     id: slugifyId(lobName, existingProjects),
     lobName: lobName || 'New Project',
     displayName: displayName || lobName || 'New Project',
-    // The line across the top of the Briefing, after the display name.
+    // The line across the top of the Briefing, after the display name, and the
+    // smaller line under it. Both are free text; an empty sub-heading is hidden.
     briefingHeader: 'CR Tracker',
+    briefingSubheader: '',
     source, // 'sheet' = synced from Google Sheets, 'manual' = rows entered in the tracker
     dateOrder: 'dmy', // how to read ambiguous numeric sheet dates: 'dmy' | 'mdy'
     googleSheetUrl: '',

@@ -111,6 +111,7 @@ export function briefingTitles(state) {
   return {
     displayTitle: proj ? proj.displayName : 'All Projects',
     headerLabel: (proj && proj.briefingHeader) || 'CR Tracker',
+    subheaderLabel: (proj && proj.briefingSubheader) || '',
     lobLabel: proj ? proj.lobName : 'Client',
     vendorLabel: VENDOR_NAME,
   }

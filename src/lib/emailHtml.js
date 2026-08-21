@@ -4,7 +4,7 @@
  * stays a string builder. Both read the same aggregation helpers.
  */
 import { INK, LINE, MUTED, tintOf, titleOf } from './colors'
-import { computeAgeInState, computeOverallAge, formatPlanned } from './dates'
+import { computeAgeInState, computeOverallAge, formatPlannedShort } from './dates'
 import { actionColorOf, actionLabelOf, percentBase, scopedTiles } from './model'
 import { toTitleCase } from './strings'
 import {
@@ -55,7 +55,7 @@ export function buildEmailHtml(state) {
   // Tiles count every CR in scope (that's what scopedTiles does); everything below
   // them lists only the rows whose status is set to appear in the Briefing.
   const rows = briefingRows(state)
-  const { displayTitle, headerLabel, lobLabel, vendorLabel } = briefingTitles(state)
+  const { displayTitle, headerLabel, subheaderLabel, lobLabel, vendorLabel } = briefingTitles(state)
   const F = 'font-family:Arial,Helvetica,sans-serif;'
   const isAll = state.currentProjectId === 'ALL'
   const ageUnit = state.display?.overallAgeUnit
@@ -75,7 +75,10 @@ export function buildEmailHtml(state) {
 
   let html = `<div style="${F} max-width:1100px;">`
   html += `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background-color:#2f7d8c; border-radius:10px; margin-bottom:14px;">
-    <tr><td style="padding:26px 34px; color:#ffffff; font-size:26px; font-weight:800; ${F}">${escapeHtml(displayTitle)} &mdash; ${escapeHtml(headerLabel)}</td></tr>
+    <tr><td style="padding:26px 34px; color:#ffffff; ${F}">
+      <div style="font-size:26px; font-weight:800;">${escapeHtml(displayTitle)} &mdash; ${escapeHtml(headerLabel)}</div>
+      ${subheaderLabel ? `<div style="font-size:14px; font-weight:600; margin-top:7px; opacity:0.9;">${escapeHtml(subheaderLabel)}</div>` : ''}
+    </td></tr>
   </table>`
 
   html += `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border:1px solid ${LINE}; border-radius:10px; margin-bottom:14px; ${F}">
@@ -90,31 +93,39 @@ export function buildEmailHtml(state) {
   const clientLines = actionableLines(state, clientRows)
   const vendorLines = actionableLines(state, vendorRows)
   const bothLines = actionableLines(state, bothRows)
+  // Nothing pending on both sides means there's no such category to report.
+  const hasBoth = bothRows.length > 0
+  const nameW = hasBoth ? '13%' : '20%'
+  const listW = hasBoth ? '20%' : '30%'
   html += `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border:1px solid ${LINE}; border-radius:10px; margin-bottom:20px; ${F}">
     <tr><td style="background-color:#2f7d8c; color:#fff; text-align:center; padding:12px; font-size:13px; font-weight:800; letter-spacing:1.5px;">ACTIONABLE POINTS</td></tr>
     <tr><td style="padding:10px 0;">
       <table role="presentation" width="100%" cellpadding="0" cellspacing="0"><tr>
-        <td style="width:13%; text-align:center; vertical-align:top; padding:16px 8px;">
+        <td style="width:${nameW}; text-align:center; vertical-align:top; padding:16px 8px;">
           <div style="font-size:12.5px; font-weight:800; color:#b3372c;">${escapeHtml(lobLabel.toUpperCase())}</div>
           <div style="font-size:24px; font-weight:800; color:#b3372c; margin-top:6px;">${clientRows.length}</div>
         </td>
-        <td style="width:20%; vertical-align:middle; padding:14px 14px; border-left:1px solid ${LINE}; border-right:1px solid ${LINE};">
+        <td style="width:${listW}; vertical-align:middle; padding:14px 14px; border-left:1px solid ${LINE}; border-right:1px solid ${LINE};">
           ${breakdownLines(clientLines.map((l) => [l.label, l.count]))}
         </td>
-        <td style="width:13%; text-align:center; vertical-align:top; padding:16px 8px;">
+        <td style="width:${nameW}; text-align:center; vertical-align:top; padding:16px 8px;">
           <div style="font-size:12.5px; font-weight:800; color:#2f5fa8;">${escapeHtml(vendorLabel.toUpperCase())}</div>
           <div style="font-size:24px; font-weight:800; color:#2f5fa8; margin-top:6px;">${vendorRows.length}</div>
         </td>
-        <td style="width:20%; vertical-align:middle; padding:14px 14px; border-left:1px solid ${LINE}; border-right:1px solid ${LINE};">
+        <td style="width:${listW}; vertical-align:middle; padding:14px 14px;${hasBoth ? ` border-left:1px solid ${LINE}; border-right:1px solid ${LINE};` : ''}">
           ${breakdownLines(vendorLines.map((l) => [l.label, l.count]))}
         </td>
-        <td style="width:14%; text-align:center; vertical-align:top; padding:16px 8px;">
+        ${
+          hasBoth
+            ? `<td style="width:14%; text-align:center; vertical-align:top; padding:16px 8px;">
           <div style="font-size:12.5px; font-weight:800; color:#6a5a9a;">${escapeHtml(`${lobLabel} + ${vendorLabel}`.toUpperCase())}</div>
           <div style="font-size:24px; font-weight:800; color:#6a5a9a; margin-top:6px;">${bothRows.length}</div>
         </td>
         <td style="width:20%; vertical-align:middle; padding:14px 14px;">
           ${breakdownLines(bothLines.map((l) => [l.label, l.count]))}
-        </td>
+        </td>`
+            : ''
+        }
       </tr></table>
     </td></tr>
   </table>`
@@ -151,7 +162,7 @@ export function buildEmailHtml(state) {
       const border = idx < groupRows.length - 1 ? `border-bottom:1px solid ${LINE};` : ''
       const overallDisplay = computeOverallAge(r, ageUnit)
       const ageDisplay = computeAgeInState(r)
-      const plannedDisplay = formatPlanned(r.planned, p.dateOrder)
+      const plannedDisplay = formatPlannedShort(r.planned, p.dateOrder)
       const isDashPlanned = plannedDisplay === '-'
       const actionColor = actionColorOf(r.action)
       const actionLabel = actionLabelOf(p, r.action)

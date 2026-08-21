@@ -78,6 +78,19 @@ export default function ProjectDetailsCard() {
             onChange={(e) => update(patchProject('briefingHeader', e.target.value))}
           />
         </label>
+        <label className="block">
+          <span className="mb-1.5 block text-[10.5px] font-semibold uppercase tracking-wider text-ink-muted">
+            Briefing Sub-heading
+          </span>
+          <input
+            type="text"
+            className="field w-full"
+            placeholder="optional — e.g. Weekly status, week 34"
+            title="Smaller line under the Briefing header; left out entirely when empty"
+            value={currentProject.briefingSubheader || ''}
+            onChange={(e) => update(patchProject('briefingSubheader', e.target.value))}
+          />
+        </label>
       </div>
     </ConfigCard>
   )
