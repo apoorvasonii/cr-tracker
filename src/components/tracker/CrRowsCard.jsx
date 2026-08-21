@@ -1,7 +1,14 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useApp } from '../../state/AppContext'
 import { addRow, removeCustomColumn, setOverallAgeUnit } from '../../state/actions'
-import { allCustomColumnsUnion, getProjectById, isManualProject, VENDOR_NAME } from '../../lib/model'
+import {
+  actionLabelOf,
+  allCustomColumnsUnion,
+  getProjectById,
+  getStatus,
+  isManualProject,
+  VENDOR_NAME,
+} from '../../lib/model'
 import FilterDropdown from './FilterDropdown'
 import CrRow from './CrRow'
 import AddColumnModal from '../modals/AddColumnModal'
@@ -17,10 +24,11 @@ function statusUniverse(state) {
   return [...seen.values()]
 }
 
-/** Segmented control for the Overall Age unit. Applies to the briefing too. */
+/** Segmented control for the Overall Age unit. The tracker no longer shows the age
+    columns, so this shapes the Briefing and the email. */
 function AgeUnitToggle({ unit, onChange }) {
   return (
-    <div className="flex h-10 items-center gap-0.5 rounded-lg border border-line bg-slate-50 p-0.5" title="Overall Age unit — also used in the Briefing">
+    <div className="flex h-10 items-center gap-0.5 rounded-lg border border-line bg-slate-50 p-0.5" title="Overall Age unit used in the Briefing and the email">
       <span className="px-2 text-[11px] font-semibold uppercase tracking-wider text-ink-muted">Age</span>
       {[
         { id: 'weeks', label: 'Weeks' },
@@ -93,7 +101,19 @@ export default function CrRowsCard() {
     const q = search.toLowerCase().trim()
     return state.crData.filter((row) => {
       if (!isAllProjects && row.projectId !== state.currentProjectId) return false
-      if (q && !row.name.toLowerCase().includes(q)) return false
+      // Typing matches what the row shows: its name, its status, or whose court
+      // it's in — so "live", "unassigned" or "salescode" all work as searches.
+      if (q) {
+        const rowProj = getProjectById(state.projects, row.projectId)
+        const haystack = [
+          row.name,
+          getStatus(state.projects, row.section, row.projectId).label,
+          actionLabelOf(rowProj, row.action),
+        ]
+          .join(' ')
+          .toLowerCase()
+        if (!haystack.includes(q)) return false
+      }
       // Only filter when a filter is actually set, so rows with no status yet
       // (a fresh tracker-only row, or one whose status was deleted) stay visible.
       if (statusFilter && !statusFilter.has(row.section)) return false
@@ -101,7 +121,7 @@ export default function CrRowsCard() {
       return true
     })
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [state.crData, state.currentProjectId, isAllProjects, search, statusFilter, actionFilter, statusKeys.join()])
+  }, [state.crData, state.projects, state.currentProjectId, isAllProjects, search, statusFilter, actionFilter, statusKeys.join()])
 
   const scopedTotal = isAllProjects
     ? state.crData.length
@@ -195,14 +215,12 @@ export default function CrRowsCard() {
               <tr>
                 <HeaderCell label="#" width="52px" />
                 {isAllProjects && <HeaderCell label="Project" width="120px" />}
-                <HeaderCell label="Feature" width="30%" />
-                <HeaderCell label="Status" width="190px" />
-                <HeaderCell label="Next Action On" width="150px" />
-                <HeaderCell label="Planned End Date" width="130px" />
-                <HeaderCell label="BRD Date" width="150px" />
-                <HeaderCell label="Moved to Status" width="150px" />
-                <HeaderCell label="Overall Age" width="90px" align="center" />
-                <HeaderCell label="Age in State" width="90px" align="center" />
+                <HeaderCell label="Feature" width="22%" />
+                <HeaderCell label="Status" width="185px" />
+                <HeaderCell label="Next Action On" width="165px" />
+                <HeaderCell label="Planned End Date" width="125px" />
+                <HeaderCell label="BRD Date" width="125px" />
+                <HeaderCell label="Moved to Status" width="125px" />
                 {customCols.map((c) => (
                   <HeaderCell
                     key={c.label}
@@ -218,7 +236,7 @@ export default function CrRowsCard() {
                     }
                   />
                 ))}
-                <HeaderCell label="Flags" width="130px" />
+                <HeaderCell label="Flags" width="120px" />
                 <HeaderCell label="" width="70px" />
               </tr>
             </thead>

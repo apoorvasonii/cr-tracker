@@ -2,23 +2,6 @@ export function normalize(s) {
   return (s || '').toString().toLowerCase().replace(/[^a-z0-9]/g, '');
 }
 
-/**
- * CR names arrive shouted ("MODIFY ORDER API") or lowercase from sheets; the
- * briefing reads them as words. Short all-caps tokens are left alone — they're
- * acronyms (BRD, API, UAT, SKU), not words that need lowering.
- */
-export function toTitleCase(value) {
-  return (value || '')
-    .toString()
-    .split(/(\s+)/)
-    .map((word) => {
-      if (/^\s+$/.test(word) || !word) return word
-      if (/^[A-Z0-9&/.-]{2,4}$/.test(word)) return word
-      return word.charAt(0).toUpperCase() + word.slice(1).toLowerCase()
-    })
-    .join('')
-}
-
 export function simpleHash(str) {
   let h = 0;
   for (let i = 0; i < str.length; i++) h = (h * 31 + str.charCodeAt(i)) | 0;

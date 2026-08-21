@@ -9,7 +9,7 @@ import {
   updateRowSection,
 } from '../../state/actions'
 import { actionLabelOf, categoryOf, getProjectById, getStatus, isManualProject, VENDOR_NAME } from '../../lib/model'
-import { computeAgeInState, computeOverallAge, formatPlanned, parseDateValue, toIsoDate } from '../../lib/dates'
+import { formatPlanned, parseDateValue, toIsoDate } from '../../lib/dates'
 import StatusSelect from './StatusSelect'
 
 /** Past its planned end date and not yet in a "live" category status. */
@@ -35,17 +35,13 @@ export default function CrRow({ row, index, customCols, readOnly, compact }) {
 
   const s = getStatus(state.projects, row.section, row.projectId)
   const overdue = isOverdue(row, categoryOf(state.globalCategories, s).id, rowProj.dateOrder)
-  const overallDisplay = computeOverallAge(row, state.display?.overallAgeUnit)
   const manualProject = isManualProject(rowProj)
-  const overallComputed = !!parseDateValue(row.brdDate)
   const plannedDate = parseDateValue(row.planned, rowProj.dateOrder)
   const plannedIso = plannedDate ? toIsoDate(plannedDate) : ''
-  const ageDisplay = computeAgeInState(row)
   const hasOverride = row.overrides && Object.values(row.overrides).some(Boolean)
   const ownColsByLabel = new Map((rowProj.customColumns || []).map((c) => [c.label, c]))
 
   const cell = `px-3 align-top ${compact ? 'py-1.5' : 'py-2.5'}`
-  const textCell = `${cell} text-center text-[12.5px]`
 
   const reset = () => {
     update(resetRowOverrides(row.recordId))
@@ -155,25 +151,6 @@ export default function CrRow({ row, index, customCols, readOnly, compact }) {
         />
       </td>
 
-      {/* Passthrough text can't honour the Weeks/Days toggle — say so rather than
-          letting the toggle look broken. */}
-      <td
-        className={`${textCell} ${
-          overallComputed ? 'text-ink-muted' : 'cursor-help italic text-ink-muted underline decoration-dotted decoration-ink-muted/40 underline-offset-4'
-        }`}
-        title={
-          overallComputed
-            ? undefined
-            : manualProject
-              ? 'Not calculated — enter a BRD Date for this row and Overall Age computes from it.'
-              : 'Text from the sheet, not calculated — map BRD Date (Configure → Connect & Configure Mapping) for this to compute and follow the Weeks/Days toggle.'
-        }
-      >
-        {overallDisplay}
-      </td>
-      <td className={`${textCell} font-bold ${ageDisplay === '-' ? 'italic font-normal text-ink-muted' : 'text-ink'}`}>
-        {ageDisplay}
-      </td>
 
       {customCols.map((c) => {
         const ownCol = ownColsByLabel.get(c.label)

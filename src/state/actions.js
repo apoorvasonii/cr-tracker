@@ -28,7 +28,7 @@ const withRow = (recordId, fn) => (draft) => {
 }
 
 /* ---------------- Display preferences ---------------- */
-/** 'weeks' shows Overall Age in 7-day weeks; 'days' shows raw calendar days. */
+/** 'weeks' shows Overall Age in 5-business-day weeks; 'days' shows raw business days. */
 export const setOverallAgeUnit = (unit) => (draft) => {
   draft.display = { ...draft.display, overallAgeUnit: unit }
 }

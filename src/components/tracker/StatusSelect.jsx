@@ -1,23 +1,23 @@
-/** Bordered select with the status colour as a bar down its left edge. */
+import { tintOf, titleOf } from '../../lib/colors'
+
+/**
+ * Select that wears its status colour: tinted fill, matching border and label, so a
+ * row's status is readable at a glance down the column rather than being a sliver.
+ */
 export default function StatusSelect({ value, options, color, disabled, onChange }) {
   return (
-    <div className="relative">
-      <span
-        className="pointer-events-none absolute inset-y-1.5 left-1.5 w-[3px] rounded-full"
-        style={{ backgroundColor: color }}
-      />
-      <select
-        className="field-select w-full pl-4 font-semibold"
-        value={value}
-        disabled={disabled}
-        onChange={(e) => onChange(e.target.value)}
-      >
-        {options.map((o) => (
-          <option key={o.value} value={o.value}>
-            {o.label}
-          </option>
-        ))}
-      </select>
-    </div>
+    <select
+      className="field-select h-8 w-full border-2 px-2.5 pr-7 text-[12px] font-semibold"
+      style={{ backgroundColor: tintOf(color), borderColor: color, color: titleOf(color) }}
+      value={value}
+      disabled={disabled}
+      onChange={(e) => onChange(e.target.value)}
+    >
+      {options.map((o) => (
+        <option key={o.value} value={o.value} style={{ backgroundColor: '#fff', color: '#2b2b2b' }}>
+          {o.label}
+        </option>
+      ))}
+    </select>
   )
 }

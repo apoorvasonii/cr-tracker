@@ -6,7 +6,6 @@
 import { INK, LINE, MUTED, tintOf, titleOf } from './colors'
 import { computeAgeInState, computeOverallAge, formatPlannedShort } from './dates'
 import { actionColorOf, actionLabelOf, percentBase, scopedTiles } from './model'
-import { toTitleCase } from './strings'
 import {
   actionableLines,
   briefingRows,
@@ -168,7 +167,7 @@ export function buildEmailHtml(state) {
       const actionLabel = actionLabelOf(p, r.action)
 
       html += `<tr>
-        <td style="padding:12px 14px; font-size:12.5px; font-weight:700; color:#3a3a3a; ${border}">${flagPrefix ? flagPrefix + ' ' : ''}${escapeHtml(toTitleCase(r.name))}</td>
+        <td style="padding:12px 14px; font-size:12.5px; font-weight:700; color:#3a3a3a; ${border}">${flagPrefix ? flagPrefix + ' ' : ''}${escapeHtml(r.name)}</td>
         <td align="center" style="padding:12px 14px; ${border}"><span style="display:inline-block; padding:4px 11px; border-radius:16px; font-size:10.5px; font-weight:800; color:#fff; background-color:${s.color};">${escapeHtml(s.label)}</span></td>
         <td align="center" style="padding:12px 14px; ${border}"><span style="display:inline-block; padding:4px 11px; border-radius:16px; font-size:10.5px; font-weight:800; color:#fff; background-color:${actionColor};">${escapeHtml(actionLabel)}</span></td>
         <td align="center" style="padding:12px 14px; font-size:12.5px; font-weight:600; color:${isDashPlanned ? MUTED : '#5c5c5c'}; font-style:${isDashPlanned ? 'italic' : 'normal'}; ${border}">${escapeHtml(plannedDisplay)}</td>

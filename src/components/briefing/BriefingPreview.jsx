@@ -2,7 +2,6 @@ import { useApp } from '../../state/AppContext'
 import { actionColorOf, actionLabelOf, percentBase, scopedTiles, VENDOR_NAME } from '../../lib/model'
 import { computeAgeInState, computeOverallAge, formatPlannedShort } from '../../lib/dates'
 import { tintOf, titleOf } from '../../lib/colors'
-import { toTitleCase } from '../../lib/strings'
 import {
   actionableLines,
   briefingRows,
@@ -76,7 +75,7 @@ function StatusSection({ state, group, showProjectName, ageUnit }) {
                         {f.symbol}{' '}
                       </span>
                     ))}
-                    {toTitleCase(r.name)}
+                    {r.name}
                   </td>
                   <td>
                     <span className="pill" style={{ backgroundColor: s.color }}>

@@ -94,16 +94,6 @@ export function parseDateValue(v, order = 'dmy') {
   return null
 }
 
-/** Calendar days between `date` and today, weekends included, end-exclusive. */
-export function calendarDaysFromDate(date) {
-  const today = new Date()
-  today.setHours(0, 0, 0, 0)
-  const start = new Date(date)
-  start.setHours(0, 0, 0, 0)
-  if (start >= today) return 0
-  return Math.round((today - start) / 86400000)
-}
-
 /** Business days between `date` and today, weekends excluded, end-exclusive. */
 export function businessDaysFromDate(date) {
   const today = new Date()
@@ -166,14 +156,14 @@ export function formatPlannedShort(value, order = 'dmy') {
   return d.getFullYear() === new Date().getFullYear() ? short : `${short} ${d.getFullYear()}`
 }
 
-/** Weeks count every day, weekends included: 7 calendar days is 1w. */
-export const DAYS_PER_WEEK = 7
+/** A working week is five business days: Saturdays and Sundays don't count. */
+export const BUSINESS_DAYS_PER_WEEK = 5
 
 export const formatAgeDays = (days) => days + 'd'
-export const formatAgeWeeks = (days) => Math.round(days / DAYS_PER_WEEK) + 'w'
+export const formatAgeWeeks = (days) => Math.round(days / BUSINESS_DAYS_PER_WEEK) + 'w'
 
 /** `unit` is 'weeks' | 'days' — the app-wide Overall Age display preference. */
-export const formatCalendarAge = (days, unit) => (unit === 'days' ? formatAgeDays(days) : formatAgeWeeks(days))
+export const formatBusinessAge = (days, unit) => (unit === 'days' ? formatAgeDays(days) : formatAgeWeeks(days))
 
 export function relativeSyncTime(ts) {
   if (!ts) return 'Never synced'
@@ -189,9 +179,9 @@ export function relativeSyncTime(ts) {
    otherwise whatever text came from the sheet / was typed in. */
 export function computeOverallAge(row, unit = 'weeks') {
   // brdDate/movedDate are always stored ISO, so no order is needed here.
-  // Overall Age is elapsed time, so Saturdays and Sundays count towards it.
+  // Weekends are not working time, so they're excluded from both age columns.
   const d = parseDateValue(row.brdDate)
-  if (d) return formatCalendarAge(calendarDaysFromDate(d), unit)
+  if (d) return formatBusinessAge(businessDaysFromDate(d), unit)
   return row.overall || '-'
 }
 

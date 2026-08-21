@@ -151,9 +151,6 @@ export default function TopBar({ onGoToConfig, onSyncAllResults }) {
         <StorageBadge status={remoteStatus} />
 
         <div className="ml-auto flex items-center gap-2">
-          <button className="btn" onClick={onGoToConfig}>
-            <span className="text-ink-muted">⚙</span> Configure
-          </button>
           {!isManualProject(currentProject) && (
             <button className="btn" onClick={syncCurrent}>
               <span className="text-ink-muted">↻</span> Sync

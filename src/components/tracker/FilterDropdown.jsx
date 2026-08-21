@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react'
+import { useEffect, useRef, useState } from 'react'
 
 /**
  * Excel-style checkbox filter. `selected` is a Set of chosen values; every
@@ -6,11 +6,19 @@ import { useEffect, useRef } from 'react'
  */
 export default function FilterDropdown({ label, open, onToggleOpen, options, selected, onChange }) {
   const ref = useRef(null)
+  const [query, setQuery] = useState('')
   const allValues = options.map((o) => o.value)
   const filtered = selected.size < allValues.length
+  // A project can accumulate dozens of statuses; typing beats scrolling.
+  const searchable = options.length > 8
+  const q = query.trim().toLowerCase()
+  const shown = q ? options.filter((o) => o.label.toLowerCase().includes(q)) : options
 
   useEffect(() => {
-    if (!open) return
+    if (!open) {
+      setQuery('')
+      return
+    }
     const onDocClick = (e) => {
       if (!ref.current?.contains(e.target)) onToggleOpen(false)
     }
@@ -43,17 +51,39 @@ export default function FilterDropdown({ label, open, onToggleOpen, options, sel
 
       {open && (
         <div className="absolute left-0 top-[calc(100%+6px)] z-50 max-h-72 min-w-[230px] overflow-y-auto rounded-xl border border-line bg-white p-2 shadow-pop">
+          {searchable && (
+            <input
+              type="text"
+              className="field mb-1.5 h-8 w-full text-[12.5px]"
+              placeholder={`Search ${label.toLowerCase()}…`}
+              value={query}
+              autoFocus
+              onClick={(e) => e.stopPropagation()}
+              onChange={(e) => setQuery(e.target.value)}
+            />
+          )}
           <label className="flex cursor-pointer items-center gap-2 rounded-lg px-2 py-1.5 text-[12.5px] font-semibold hover:bg-slate-50">
             <input
               type="checkbox"
               className="h-3.5 w-3.5 accent-brand-600"
-              checked={!filtered}
-              onChange={(e) => onChange(e.target.checked ? new Set(allValues) : new Set())}
+              checked={q ? shown.every((o) => selected.has(o.value)) : !filtered}
+              onChange={(e) => {
+                if (!q) {
+                  onChange(e.target.checked ? new Set(allValues) : new Set())
+                  return
+                }
+                const next = new Set(selected)
+                shown.forEach((o) => (e.target.checked ? next.add(o.value) : next.delete(o.value)))
+                onChange(next)
+              }}
             />
-            Select all
+            {q ? 'Select all matches' : 'Select all'}
           </label>
           <hr className="my-1.5 border-line" />
-          {options.map((o) => (
+          {shown.length === 0 && (
+            <p className="px-2 py-3 text-center text-[12px] text-ink-muted">No match</p>
+          )}
+          {shown.map((o) => (
             <label
               key={o.value}
               className="flex cursor-pointer items-center gap-2 whitespace-nowrap rounded-lg px-2 py-1.5 text-[12.5px] hover:bg-slate-50"
