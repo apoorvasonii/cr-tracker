@@ -1,12 +1,29 @@
 import { normalize } from './strings'
-import { parseDateValue, toIsoDate } from './dates'
+import { formatPlanned, parseDateValue, toIsoDate } from './dates'
 import {
   OVERRIDABLE_FIELDS,
   makeNewRecord,
   makeStatusFromSheetValue,
   mapSheetStatusToProjectStatus,
   stableFallbackId,
+  VENDOR_NAME,
 } from './model'
+
+/**
+ * Reads responsibility off the mapped column's own value: it belongs to the
+ * delivery side when the cell names it, and to the client when it names the
+ * project's LOB. Returns null when the value matches neither, so the caller can
+ * warn about it instead of quietly picking a side.
+ */
+export function resolveAction(proj, rawValue) {
+  const value = normalize(rawValue)
+  if (!value) return null
+
+  const names = (a, b) => a && b && (a.includes(b) || b.includes(a))
+  if (names(value, normalize(VENDOR_NAME))) return 'vendor'
+  if (names(value, normalize(proj.lobName))) return 'client'
+  return null
+}
 
 /**
  * Resolves a raw sheet value to a status key, creating the status when it's new.
@@ -106,6 +123,9 @@ export function applySyncToProject(crData, proj, headers, rows) {
 
   const hasUniqueIdColumn = !!(m.idColumn && headers.includes(m.idColumn))
   const statusValuesSeen = new Set()
+  const actionValuesSeen = new Set()
+  const unrecognizedActions = new Set()
+  let blankActions = 0
   const statusesCreated = []
   const fallbackIdCounts = {}
   let created = 0
@@ -117,20 +137,28 @@ export function applySyncToProject(crData, proj, headers, rows) {
       const name = m.name ? (row[m.name] || '').toString().trim() : ''
       if (!name) return null
 
+      if (m.action) {
+        const seen = (row[m.action] ?? '').toString().trim()
+        if (seen) actionValuesSeen.add(seen)
+      }
+
       const statusRaw = m.section ? row[m.section] : ''
       const rawSection = (statusRaw ?? '').toString().trim()
       if (rawSection) statusValuesSeen.add(rawSection)
       const section = resolveStatus(proj, statusRaw, statusesCreated)
 
-      // Whose court the CR is in: matched against this project's own two party
-      // names, so nothing about either side is baked in.
-      const actionRaw = normalize(m.action ? row[m.action] : '')
-      const vendorMatch = proj.vendorName && actionRaw.includes(normalize(proj.vendorName))
-      const action = vendorMatch ? 'vendor' : 'client'
+      // Whose court the CR is in, read off the mapped column itself.
+      const actionCell = m.action ? (row[m.action] ?? '').toString().trim() : ''
+      const action = resolveAction(proj, actionCell)
+      if (m.action) {
+        if (!actionCell) blankActions++
+        else if (action === null) unrecognizedActions.add(actionCell)
+      }
 
-      const planned = m.planned && row[m.planned] ? row[m.planned].toString() : '-'
+      // Stored in the app's dd/mm/yyyy form, however the sheet happened to write it.
+      const planned = m.planned && row[m.planned] ? formatPlanned(row[m.planned], proj.dateOrder) : '-'
 
-      const incoming = { name, section, action, planned, rawSection }
+      const incoming = { name, section, action: action || '', planned, rawSection }
 
       if (m.brdDateCol && row[m.brdDateCol]) {
         const d = parseDateValue(row[m.brdDateCol], proj.dateOrder)
@@ -176,6 +204,18 @@ export function applySyncToProject(crData, proj, headers, rows) {
   })
 
   proj.discoveredStatusValues = [...statusValuesSeen]
+  proj.discoveredActionValues = [...actionValuesSeen]
+
+  if (unrecognizedActions.size) {
+    warnings.push(
+      `${unrecognizedActions.size} value${unrecognizedActions.size === 1 ? '' : 's'} in "${m.action}" named neither side, so those rows were left unassigned — set them on the tracker: ${[...unrecognizedActions].join(', ')}.`
+    )
+  }
+  if (blankActions) {
+    warnings.push(
+      `${blankActions} row${blankActions === 1 ? ' has' : 's have'} an empty "${m.action}" cell — those were left unassigned until someone picks a side.`
+    )
+  }
 
   if (statusesCreated.length) {
     warnings.push(

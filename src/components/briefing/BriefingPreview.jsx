@@ -1,6 +1,6 @@
 import { useApp } from '../../state/AppContext'
-import { percentBase, scopedTiles } from '../../lib/model'
-import { computeAgeInState, computeOverallAge } from '../../lib/dates'
+import { actionColorOf, actionLabelOf, percentBase, scopedTiles, VENDOR_NAME } from '../../lib/model'
+import { computeAgeInState, computeOverallAge, formatPlanned } from '../../lib/dates'
 import { tintOf, titleOf } from '../../lib/colors'
 import {
   actionableLines,
@@ -30,7 +30,7 @@ function Breakdown({ lines }) {
 }
 
 function StatusSection({ state, group, showProjectName, ageUnit }) {
-  const vendorLabel = group.project.vendorName || 'Delivery Partner'
+  const vendorLabel = VENDOR_NAME
   const { project, status: s, rows } = group
   const tint = tintOf(s.color)
   const title = titleOf(s.color)
@@ -64,8 +64,8 @@ function StatusSection({ state, group, showProjectName, ageUnit }) {
               const flags = rowFlags(state, r)
               const overallDisplay = computeOverallAge(r, ageUnit)
               const ageDisplay = computeAgeInState(r)
-              const actionColor = r.action === 'vendor' ? '#4a7fae' : '#8a5a3f'
-              const actionLabel = r.action === 'vendor' ? vendorLabel : project.lobName
+              const actionColor = actionColorOf(r.action)
+              const actionLabel = actionLabelOf(project, r.action)
 
               return (
                 <tr key={r.recordId}>
@@ -87,7 +87,7 @@ function StatusSection({ state, group, showProjectName, ageUnit }) {
                       {actionLabel}
                     </span>
                   </td>
-                  <td className={r.planned === '-' ? 'planned tbd' : 'planned'}>{r.planned}</td>
+                  <td className={r.planned === '-' ? 'planned tbd' : 'planned'}>{formatPlanned(r.planned, project.dateOrder)}</td>
                   <td className={`center overall-age${overallDisplay === '-' ? ' dash' : ''}`}>{overallDisplay}</td>
                   <td className={`center age${ageDisplay === '-' ? ' dash' : ''}`}>{ageDisplay}</td>
                 </tr>

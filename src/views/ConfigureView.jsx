@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { useApp } from '../state/AppContext'
+import { isManualProject } from '../lib/model'
 import ProjectDetailsCard from '../components/configure/ProjectDetailsCard'
 import SheetConnectionCard from '../components/configure/SheetConnectionCard'
 import MappingTable from '../components/configure/MappingTable'
@@ -7,7 +8,6 @@ import StatusMappingTable from '../components/configure/StatusMappingTable'
 import StatusesTable from '../components/configure/StatusesTable'
 import OverallMetricsTable from '../components/configure/OverallMetricsTable'
 import FlagsTable from '../components/configure/FlagsTable'
-import SheetTabsTable from '../components/configure/SheetTabsTable'
 import GlobalCategoriesTable from '../components/configure/GlobalCategoriesTable'
 import ConnectSheetModal from '../components/modals/ConnectSheetModal'
 import MappingModal from '../components/modals/MappingModal'
@@ -15,6 +15,7 @@ import AddColumnModal from '../components/modals/AddColumnModal'
 
 export default function ConfigureView() {
   const { currentProject } = useApp()
+  const manual = isManualProject(currentProject)
   const [connectOpen, setConnectOpen] = useState(false)
   const [addColumnOpen, setAddColumnOpen] = useState(false)
   // Set once the Connect wizard has fetched a sheet: { headers, rows }.
@@ -31,13 +32,12 @@ export default function ConfigureView() {
       {currentProject && (
         <>
           <ProjectDetailsCard />
-          <SheetConnectionCard onOpenConnect={() => setConnectOpen(true)} />
+          {!manual && <SheetConnectionCard onOpenConnect={() => setConnectOpen(true)} />}
           <MappingTable onAddColumn={() => setAddColumnOpen(true)} />
-          <StatusMappingTable />
+          {!manual && <StatusMappingTable />}
           <StatusesTable />
           <OverallMetricsTable />
           <FlagsTable />
-          <SheetTabsTable />
         </>
       )}
 

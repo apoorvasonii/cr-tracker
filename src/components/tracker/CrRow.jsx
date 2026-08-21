@@ -1,5 +1,6 @@
 import { useApp } from '../../state/AppContext'
 import {
+  addStatusForRow,
   deleteRow,
   resetRowOverrides,
   toggleRowFlag,
@@ -7,8 +8,8 @@ import {
   updateRow,
   updateRowSection,
 } from '../../state/actions'
-import { categoryOf, getProjectById, getStatus } from '../../lib/model'
-import { computeAgeInState, computeOverallAge, parseDateValue } from '../../lib/dates'
+import { actionLabelOf, categoryOf, getProjectById, getStatus, isManualProject, VENDOR_NAME } from '../../lib/model'
+import { computeAgeInState, computeOverallAge, formatPlanned, parseDateValue, toIsoDate } from '../../lib/dates'
 import StatusSelect from './StatusSelect'
 
 /** Past its planned end date and not yet in a "live" category status. */
@@ -23,6 +24,9 @@ function isOverdue(row, statusCategoryId, dateOrder) {
   return d < today
 }
 
+/** Sentinel option value: "type a status that doesn't exist yet". */
+const NEW_STATUS = '__new_status__'
+
 /** `customCols` is the column set for the current scope; a row's project may not have all of them. */
 export default function CrRow({ row, index, customCols, readOnly, compact }) {
   const { state, update, showToast } = useApp()
@@ -32,7 +36,10 @@ export default function CrRow({ row, index, customCols, readOnly, compact }) {
   const s = getStatus(state.projects, row.section, row.projectId)
   const overdue = isOverdue(row, categoryOf(state.globalCategories, s).id, rowProj.dateOrder)
   const overallDisplay = computeOverallAge(row, state.display?.overallAgeUnit)
+  const manualProject = isManualProject(rowProj)
   const overallComputed = !!parseDateValue(row.brdDate)
+  const plannedDate = parseDateValue(row.planned, rowProj.dateOrder)
+  const plannedIso = plannedDate ? toIsoDate(plannedDate) : ''
   const ageDisplay = computeAgeInState(row)
   const hasOverride = row.overrides && Object.values(row.overrides).some(Boolean)
   const ownColsByLabel = new Map((rowProj.customColumns || []).map((c) => [c.label, c]))
@@ -86,30 +93,44 @@ export default function CrRow({ row, index, customCols, readOnly, compact }) {
               ? []
               : [{ value: row.section || '', label: s.label }]),
             ...rowProj.statusConfig.map((st) => ({ value: st.key, label: st.label })),
+            // Tracker-only projects have no sheet to learn statuses from: they
+            // accumulate as rows are given one.
+            ...(manualProject ? [{ value: NEW_STATUS, label: '+ New status…' }] : []),
           ]}
-          onChange={(v) => update(updateRowSection(row.recordId, v))}
+          onChange={(v) => {
+            if (v !== NEW_STATUS) {
+              update(updateRowSection(row.recordId, v))
+              return
+            }
+            const label = prompt('New status for this project:', '')
+            if (label && label.trim()) update(addStatusForRow(row.recordId, label))
+          }}
         />
       </td>
 
       <td className={cell}>
         <select
           className="field-select w-full"
-          value={row.action}
+          value={row.action || ''}
           disabled={readOnly}
           onChange={(e) => update(updateRow(row.recordId, 'action', e.target.value))}
         >
+          {/* Blank is a real state: the sheet didn't say, so nobody has claimed it. */}
+          <option value="">{actionLabelOf(rowProj, '')}</option>
           <option value="client">{rowProj.lobName}</option>
-          <option value="vendor">{rowProj.vendorName || 'Delivery Partner'}</option>
+          <option value="vendor">{VENDOR_NAME}</option>
         </select>
       </td>
 
+      {/* Picked like BRD Date, but stored as dd/mm/yyyy: that's the form the sheet
+          sync writes and the briefing reads. Clearing the picker means "-". */}
       <td className={cell}>
         <input
-          type="text"
+          type="date"
           className="field w-full"
-          value={row.planned}
+          value={plannedIso}
           readOnly={readOnly}
-          onChange={(e) => update(updateRow(row.recordId, 'planned', e.target.value))}
+          onChange={(e) => update(updateRow(row.recordId, 'planned', formatPlanned(e.target.value)))}
         />
       </td>
 
@@ -142,7 +163,9 @@ export default function CrRow({ row, index, customCols, readOnly, compact }) {
         title={
           overallComputed
             ? undefined
-            : 'Text from the sheet, not calculated — map BRD Date (Configure → Connect & Configure Mapping) for this to compute and follow the Weeks/Days toggle.'
+            : manualProject
+              ? 'Not calculated — enter a BRD Date for this row and Overall Age computes from it.'
+              : 'Text from the sheet, not calculated — map BRD Date (Configure → Connect & Configure Mapping) for this to compute and follow the Weeks/Days toggle.'
         }
       >
         {overallDisplay}

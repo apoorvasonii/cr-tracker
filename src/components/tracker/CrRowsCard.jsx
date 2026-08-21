@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useApp } from '../../state/AppContext'
 import { addRow, removeCustomColumn, setOverallAgeUnit } from '../../state/actions'
-import { allCustomColumnsUnion, getProjectById } from '../../lib/model'
+import { allCustomColumnsUnion, getProjectById, isManualProject, VENDOR_NAME } from '../../lib/model'
 import FilterDropdown from './FilterDropdown'
 import CrRow from './CrRow'
 import AddColumnModal from '../modals/AddColumnModal'
@@ -81,21 +81,23 @@ export default function CrRowsCard() {
 
   const statuses = statusUniverse(state)
   const statusKeys = statuses.map((s) => s.key)
-  const actionKeys = ['client', 'vendor']
+  const actionKeys = ['client', 'vendor', '']
   const effectiveStatus = statusFilter ?? new Set(statusKeys)
   const effectiveAction = actionFilter ?? new Set(actionKeys)
 
   const customCols = isAllProjects ? allCustomColumnsUnion(state.projects) : proj?.customColumns || []
   const lobLabel = proj ? proj.lobName : 'Client'
-  const vendorLabel = proj ? proj.vendorName || 'Delivery Partner' : 'Delivery Partner'
+  const vendorLabel = VENDOR_NAME
 
   const visible = useMemo(() => {
     const q = search.toLowerCase().trim()
     return state.crData.filter((row) => {
       if (!isAllProjects && row.projectId !== state.currentProjectId) return false
       if (q && !row.name.toLowerCase().includes(q)) return false
-      if (!effectiveStatus.has(row.section)) return false
-      if (!effectiveAction.has(row.action)) return false
+      // Only filter when a filter is actually set, so rows with no status yet
+      // (a fresh tracker-only row, or one whose status was deleted) stay visible.
+      if (statusFilter && !statusFilter.has(row.section)) return false
+      if (actionFilter && !actionFilter.has(row.action)) return false
       return true
     })
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -107,18 +109,10 @@ export default function CrRowsCard() {
 
   const isFiltered = search || statusFilter || actionFilter
 
+
   return (
     <>
       <div className="card overflow-hidden">
-        {/* Without a mapped BRD Date there's nothing to compute Overall Age from, so
-            it shows the sheet's own text and the Weeks/Days toggle can't apply. */}
-        {proj && !proj.mapping.brdDateCol && scopedTotal > 0 && (
-          <p className="border-b border-amber-200 bg-amber-50 px-4 py-2.5 text-[12px] text-amber-900">
-            <b className="font-semibold">BRD Date isn’t mapped.</b> Overall Age is showing the text that came from your
-            sheet, so the Weeks/Days toggle has no effect on it. Map it under Configure → Connect &amp; Configure
-            Mapping, then re-sync.
-          </p>
-        )}
 
         {/* Toolbar */}
         <div className="flex flex-wrap items-center gap-2 border-b border-line px-4 py-3">
@@ -148,6 +142,7 @@ export default function CrRowsCard() {
             options={[
               { value: 'client', label: lobLabel },
               { value: 'vendor', label: vendorLabel },
+              { value: '', label: 'Unassigned' },
             ]}
             selected={effectiveAction}
             onChange={setActionFilter}
@@ -243,7 +238,9 @@ export default function CrRowsCard() {
           {visible.length === 0 && (
             <p className="px-4 py-14 text-center text-[13px] text-ink-muted">
               {scopedTotal === 0
-                ? 'No CR rows yet — connect a Google Sheet and sync, or add a row.'
+                ? isManualProject(proj)
+                  ? 'No CR rows yet — use “+ Row” to add the first CR, then give it a status.'
+                  : 'No CR rows yet — connect a Google Sheet and sync, or add a row.'
                 : 'No rows match these filters.'}
             </p>
           )}

@@ -18,7 +18,7 @@ export default function SheetConnectionCard({ onOpenConnect }) {
   return (
     <ConfigCard
       title="Google Sheet Connection"
-      sub='Must be shared as "Anyone with the link can view" — or an Apps Script Web App URL for private sheets.'
+      sub='Must be shared as "Anyone with the link can view" — or an Apps Script Web App URL for private sheets. The tab is taken from the link, or picked while connecting.'
     >
       <div className="flex flex-wrap gap-2">
         <input
@@ -28,18 +28,6 @@ export default function SheetConnectionCard({ onOpenConnect }) {
           value={currentProject.googleSheetUrl}
           onChange={(e) => update(patchProject('googleSheetUrl', e.target.value))}
         />
-        <select
-          className="field-select"
-          value={currentProject.sheetTabValue || ''}
-          onChange={(e) => update(patchProject('sheetTabValue', e.target.value))}
-        >
-          <option value="">Tab: from link (or first)</option>
-          {currentProject.sheetTabConfig.map((t) => (
-            <option key={t.id} value={t.value}>
-              {t.label}
-            </option>
-          ))}
-        </select>
         <button className="btn-primary" onClick={onOpenConnect}>
           Connect &amp; configure mapping
         </button>

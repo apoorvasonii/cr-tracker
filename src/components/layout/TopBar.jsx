@@ -2,11 +2,18 @@ import { useState } from 'react'
 import { useApp } from '../../state/AppContext'
 import { deleteProject, selectProject } from '../../state/actions'
 import { relativeSyncTime } from '../../lib/dates'
+import { isManualProject } from '../../lib/model'
 import AddProjectModal from '../modals/AddProjectModal'
 
 function SyncLine({ project }) {
   if (!project) {
     return <div className="hidden text-[12px] leading-tight text-ink-muted lg:block">All projects · read-only view</div>
+  }
+
+  if (isManualProject(project)) {
+    return (
+      <div className="hidden text-[12px] leading-tight text-ink-muted lg:block">Tracker-only · no Google Sheet</div>
+    )
   }
 
   const state = project.syncStatus
@@ -27,7 +34,7 @@ function SyncLine({ project }) {
         </span>
       </div>
       <div className="truncate text-ink-muted">
-        Google Sheet · {project.sheetTabValue || 'default tab'}
+        Google Sheet · {project.sheetTabValue || 'tab from link'}
       </div>
     </div>
   )
@@ -63,7 +70,7 @@ export default function TopBar({ onGoToConfig, onSyncAllResults }) {
 
   const title = currentProject ? currentProject.displayName : 'All Projects'
   const subtitle = currentProject
-    ? [currentProject.lobName, currentProject.vendorName && `by ${currentProject.vendorName}`].filter(Boolean).join(' · ')
+    ? currentProject.lobName
     : `${state.projects.length} projects`
   const initial = (currentProject?.lobName || 'A').charAt(0).toUpperCase()
 
@@ -147,9 +154,11 @@ export default function TopBar({ onGoToConfig, onSyncAllResults }) {
           <button className="btn" onClick={onGoToConfig}>
             <span className="text-ink-muted">⚙</span> Configure
           </button>
-          <button className="btn" onClick={syncCurrent}>
-            <span className="text-ink-muted">↻</span> Sync
-          </button>
+          {!isManualProject(currentProject) && (
+            <button className="btn" onClick={syncCurrent}>
+              <span className="text-ink-muted">↻</span> Sync
+            </button>
+          )}
           <button className="btn-primary" onClick={syncAll}>
             ↻ Sync All
           </button>

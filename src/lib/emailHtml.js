@@ -4,8 +4,8 @@
  * stays a string builder. Both read the same aggregation helpers.
  */
 import { INK, LINE, MUTED, tintOf, titleOf } from './colors'
-import { computeAgeInState, computeOverallAge } from './dates'
-import { percentBase, scopedTiles } from './model'
+import { computeAgeInState, computeOverallAge, formatPlanned } from './dates'
+import { actionColorOf, actionLabelOf, percentBase, scopedTiles } from './model'
 import {
   actionableLines,
   briefingRows,
@@ -140,15 +140,16 @@ export function buildEmailHtml(state) {
       const border = idx < groupRows.length - 1 ? `border-bottom:1px solid ${LINE};` : ''
       const overallDisplay = computeOverallAge(r, ageUnit)
       const ageDisplay = computeAgeInState(r)
-      const isDashPlanned = r.planned === '-'
-      const actionColor = r.action === 'vendor' ? '#4a7fae' : '#8a5a3f'
-      const actionLabel = r.action === 'vendor' ? p.vendorName || 'Delivery Partner' : p.lobName
+      const plannedDisplay = formatPlanned(r.planned, p.dateOrder)
+      const isDashPlanned = plannedDisplay === '-'
+      const actionColor = actionColorOf(r.action)
+      const actionLabel = actionLabelOf(p, r.action)
 
       html += `<tr>
         <td style="padding:12px 14px; font-size:12.5px; font-weight:700; color:#3a3a3a; text-transform:uppercase; ${border}">${flagPrefix ? flagPrefix + ' ' : ''}${escapeHtml(r.name)}</td>
         <td align="center" style="padding:12px 14px; ${border}"><span style="display:inline-block; padding:4px 11px; border-radius:16px; font-size:10.5px; font-weight:800; color:#fff; background-color:${s.color};">${escapeHtml(s.label)}</span></td>
         <td align="center" style="padding:12px 14px; ${border}"><span style="display:inline-block; padding:4px 11px; border-radius:16px; font-size:10.5px; font-weight:800; color:#fff; background-color:${actionColor};">${escapeHtml(actionLabel)}</span></td>
-        <td align="center" style="padding:12px 14px; font-size:12.5px; font-weight:600; color:${isDashPlanned ? MUTED : '#5c5c5c'}; font-style:${isDashPlanned ? 'italic' : 'normal'}; ${border}">${escapeHtml(r.planned)}</td>
+        <td align="center" style="padding:12px 14px; font-size:12.5px; font-weight:600; color:${isDashPlanned ? MUTED : '#5c5c5c'}; font-style:${isDashPlanned ? 'italic' : 'normal'}; ${border}">${escapeHtml(plannedDisplay)}</td>
         <td align="center" style="padding:12px 14px; font-size:12.5px; font-weight:500; color:${MUTED}; font-style:${overallDisplay === '-' ? 'italic' : 'normal'}; ${border}">${escapeHtml(overallDisplay)}</td>
         <td align="center" style="padding:12px 14px; font-size:14px; font-weight:800; color:${ageDisplay === '-' ? MUTED : INK}; font-style:${ageDisplay === '-' ? 'italic' : 'normal'}; ${border}">${escapeHtml(ageDisplay)}</td>
       </tr>`

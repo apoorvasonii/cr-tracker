@@ -3,6 +3,7 @@ import Modal, { FieldGrid, FieldLabel, ModalActions } from '../ui/Modal'
 import { useApp } from '../../state/AppContext'
 import { addCustomColumn } from '../../state/actions'
 import { usefulHeaders } from '../../lib/sheets'
+import { isManualProject } from '../../lib/model'
 
 export default function AddColumnModal({ open, onClose }) {
   const { currentProject: proj, update, showToast } = useApp()
@@ -11,11 +12,12 @@ export default function AddColumnModal({ open, onClose }) {
   const [sheetCol, setSheetCol] = useState('')
 
   const headers = usefulHeaders(proj?.lastFetchedHeaders || [])
+  const manualProject = isManualProject(proj)
 
   useEffect(() => {
     if (!open) return
     setLabel('')
-    setType('sheet')
+    setType(manualProject ? 'manual' : 'sheet')
     setSheetCol(headers[0] || '')
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open])
@@ -46,13 +48,13 @@ export default function AddColumnModal({ open, onClose }) {
           onChange={(e) => setLabel(e.target.value)}
         />
 
-        <FieldLabel>Type</FieldLabel>
-        <select className="field-select w-full" value={type} onChange={(e) => setType(e.target.value)}>
+        {!manualProject && <FieldLabel>Type</FieldLabel>}
+        {!manualProject && <select className="field-select w-full" value={type} onChange={(e) => setType(e.target.value)}>
           <option value="sheet">Google Sheet mapped</option>
           <option value="manual">Manual</option>
-        </select>
+        </select>}
 
-        {type === 'sheet' && (
+        {!manualProject && type === 'sheet' && (
           <>
             <FieldLabel>Sheet column</FieldLabel>
             <select className="field-select w-full" value={sheetCol} onChange={(e) => setSheetCol(e.target.value)}>

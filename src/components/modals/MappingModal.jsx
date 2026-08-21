@@ -206,8 +206,9 @@ export default function MappingModal({ fetched, onClose }) {
       )}
 
       <p className="text-[12px] leading-relaxed text-ink-muted">
-        Overall Age and Age in Current State are calculated from BRD Date / Moved to Current Status (business days,
-        weekends excluded) — they don’t need their own mapping.
+        Overall Age and Age in Current State are calculated from BRD Date / Moved to Current Status — Overall Age
+        counts every day (7 days to a week), Age in Current State counts business days — so they don’t need their own
+        mapping.
       </p>
 
       <ModalActions>

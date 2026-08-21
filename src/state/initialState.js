@@ -5,9 +5,11 @@ import { defaultGlobalCategories, defaultMapping, makeMetric, makeProject } from
 function migrateProject(p) {
   if (!p.statusMapping) p.statusMapping = []
   if (!p.discoveredStatusValues) p.discoveredStatusValues = []
+  if (!p.discoveredActionValues) p.discoveredActionValues = []
   if (!p.ignoredStatusValues) p.ignoredStatusValues = []
   if (!p.customColumns) p.customColumns = []
-  if (!p.sheetTabConfig) p.sheetTabConfig = []
+  // Saved tab labels are gone: a workbook's own tab names are offered instead.
+  delete p.sheetTabConfig
   if (!p.mapping) p.mapping = defaultMapping()
   if (!('idColumn' in p.mapping)) p.mapping.idColumn = ''
 
@@ -32,11 +34,14 @@ function migrateProject(p) {
     if (!('showInBriefing' in s)) s.showInBriefing = true
   })
 
-  // The delivery-side party used to be hardcoded; it's project config now.
-  if (!p.vendorName) p.vendorName = 'Delivery Partner'
+  // The delivery-side party was briefly per-project config; it's fixed again.
+  delete p.vendorName
 
   // Numeric sheet dates used to be read day-first for everyone.
   if (!p.dateOrder) p.dateOrder = 'dmy'
+
+  // Every project used to be sheet-backed; manual projects came later.
+  if (!p.source) p.source = 'sheet'
 
   // Overall Status tiles: Total/Live/In Pipeline used to be fixed fields (`meta`)
   // with auto-count toggles, and only the extra tiles were configurable. Fold both
@@ -65,7 +70,7 @@ function migrateProject(p) {
   return p
 }
 
-/** The 'salescode' action value predates the configurable delivery-partner name. */
+/** The 'salescode' action value predates the generic 'vendor' action value. */
 function migrateRow(r) {
   if (r.action === 'salescode') r.action = 'vendor'
   if (r.sourceSnapshot && r.sourceSnapshot.action === 'salescode') r.sourceSnapshot.action = 'vendor'

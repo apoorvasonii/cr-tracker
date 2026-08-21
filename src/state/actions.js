@@ -9,6 +9,7 @@ import {
   makeMetric,
   makeNewRecord,
   makeProject,
+  makeStatusFromLabel,
   mapSheetStatusToProjectStatus,
 } from '../lib/model'
 import { sequentialId, slugifyCategory, slugifyStatus, uid } from '../lib/strings'
@@ -27,7 +28,7 @@ const withRow = (recordId, fn) => (draft) => {
 }
 
 /* ---------------- Display preferences ---------------- */
-/** 'weeks' shows Overall Age in 5-day weeks; 'days' shows raw business days. */
+/** 'weeks' shows Overall Age in 7-day weeks; 'days' shows raw calendar days. */
 export const setOverallAgeUnit = (unit) => (draft) => {
   draft.display = { ...draft.display, overallAgeUnit: unit }
 }
@@ -35,8 +36,8 @@ export const setOverallAgeUnit = (unit) => (draft) => {
 /* ---------------- Projects ---------------- */
 export const selectProject = (id) => (draft) => { draft.currentProjectId = id }
 
-export const addProject = (name) => (draft) => {
-  const proj = makeProject(name, name, draft.projects)
+export const addProject = (name, source = 'sheet') => (draft) => {
+  const proj = makeProject(name, name, draft.projects, source)
   draft.projects.push(proj)
   draft.currentProjectId = proj.id
 }
@@ -167,20 +168,6 @@ export const removeFlag = (id) =>
   })
 
 /* ---------------- Sheet tabs ---------------- */
-export const addSheetTab = () =>
-  withCurrentProject((proj) => {
-    proj.sheetTabConfig.push({ id: sequentialId('tab', proj.sheetTabConfig), label: 'New Tab', value: '' })
-  })
-
-export const updateSheetTab = (id, field, value) =>
-  withCurrentProject((proj) => {
-    const t = proj.sheetTabConfig.find((x) => x.id === id)
-    if (t) t[field] = value
-  })
-
-export const removeSheetTab = (id) =>
-  withCurrentProject((proj) => { proj.sheetTabConfig = proj.sheetTabConfig.filter((t) => t.id !== id) })
-
 /* ---------------- Status mapping ---------------- */
 export const addStatusMappingRow = () =>
   withCurrentProject((proj) => {
@@ -312,6 +299,30 @@ export const updateRowSection = (recordId, value) =>
     row.overrides.movedDate = true
   })
 
+/**
+ * Tracker-only projects have no sheet to learn statuses from, so their vocabulary
+ * is built here: a status typed on a row is added to the project and reused by
+ * every later row.
+ */
+export const addStatusForRow = (recordId, label) => (draft) => {
+  const row = draft.crData.find((r) => r.recordId === recordId)
+  if (!row) return
+  const proj = getProjectById(draft.projects, row.projectId)
+  if (!proj) return
+
+  const trimmed = label.trim()
+  if (!trimmed) return
+  const existing = proj.statusConfig.find((s) => s.label.toLowerCase() === trimmed.toLowerCase())
+  const status = existing || makeStatusFromLabel(trimmed, proj.statusConfig)
+  if (!existing) proj.statusConfig.push(status)
+
+  row.section = status.key
+  row.movedDate = todayIso()
+  row.overrides = row.overrides || {}
+  row.overrides.section = true
+  row.overrides.movedDate = true
+}
+
 export const updateCustomFieldValue = (recordId, columnId, value) =>
   withRow(recordId, (row) => {
     row.custom = row.custom || {}
@@ -350,7 +361,7 @@ export const addRow = () =>
       makeNewRecord(proj.id, sourceRecordId, recordId, {
         name: 'New CR',
         section: (proj.statusConfig[0] || {}).key || '',
-        action: 'client',
+        action: '',
         planned: '-',
         overall: '-',
         age: '-',

@@ -3,7 +3,7 @@
  * Shared by the on-screen preview and the email HTML builder so the two
  * can't drift in what they count.
  */
-import { getFlag, getProjectById, getStatus } from './model'
+import { getFlag, getProjectById, getStatus, VENDOR_NAME } from './model'
 
 export function scopeRows(state) {
   return state.currentProjectId === 'ALL'
@@ -111,6 +111,6 @@ export function briefingTitles(state) {
   return {
     displayTitle: proj ? proj.displayName : 'All Projects',
     lobLabel: proj ? proj.lobName : 'Client',
-    vendorLabel: proj ? proj.vendorName || 'Delivery Partner' : 'Delivery Partner',
+    vendorLabel: VENDOR_NAME,
   }
 }

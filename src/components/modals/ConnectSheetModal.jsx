@@ -5,8 +5,10 @@ import { patchProject } from '../../state/actions'
 import { fetchAppsScriptSheets, fetchSheetForProject, isAppsScriptUrl } from '../../lib/sheets'
 
 /**
- * Step 1: paste the link. Step 2: pick a tab. On success it hands the fetched
- * { headers, rows } up, so the Map Columns step never re-requests the sheet.
+ * Step 1: paste the link. Step 2: fetch it — the workbook's own tab names are
+ * offered only when there is more than one to choose between, otherwise the single
+ * tab (or the one named by the link) is taken without asking. On success it hands
+ * the fetched { headers, rows } up, so Map Columns never re-requests the sheet.
  */
 export default function ConnectSheetModal({ open, onClose, onFetched }) {
   const { currentProject: proj, update, showToast } = useApp()
@@ -47,7 +49,9 @@ export default function ConnectSheetModal({ open, onClose, onFetched }) {
       })
       .catch((err) => {
         setBusy(false)
-        showToast(err.message || String(err), true)
+        const message = err.message || String(err)
+        setHint(message)
+        showToast(message, true)
       })
   }
 
@@ -65,13 +69,14 @@ export default function ConnectSheetModal({ open, onClose, onFetched }) {
       setAppsScriptTabs([])
       fetchAppsScriptSheets(trimmed)
         .then((sheets) => {
+          // One tab needs no decision — take it and go straight to the columns.
           if (sheets.length === 1) {
             fetchNow('')
             return
           }
           setAppsScriptTabs(sheets)
           setTab(sheets[0].name)
-          setHint(`Found ${sheets.length} tabs in that workbook — choose one:`)
+          setHint(`That workbook has ${sheets.length} tabs — choose the one holding the CRs:`)
         })
         .catch((err) => {
           setHint(
@@ -80,15 +85,21 @@ export default function ConnectSheetModal({ open, onClose, onFetched }) {
               ')'
           )
         })
-    } else {
-      setAppsScriptTabs(null)
-      setHint(
-        'Pick a saved tab (Configure → Sheet Tabs), or leave the default to use the tab already in the link — or the first tab if it doesn’t specify one.'
-      )
+      return
     }
+
+    // A plain sheet link doesn't expose its tab list to the browser, so there's
+    // nothing to choose from: fetch the tab the link names, or the first one.
+    setAppsScriptTabs(null)
+    setTab('')
+    setHint('Fetching the tab from that link — or its first tab if the link doesn’t name one…')
+    fetchNow('')
   }
 
   if (!proj) return null
+
+  // Only an Apps Script workbook with several tabs leaves anything to pick.
+  const hasTabChoice = !!appsScriptTabs && appsScriptTabs.length > 1
 
   return (
     <Modal open={open} onClose={onClose} title="Connect Google Sheet" sub={`Step ${step} of 2`}>
@@ -121,33 +132,28 @@ export default function ConnectSheetModal({ open, onClose, onFetched }) {
         </>
       ) : (
         <>
-          <ModalSection title="Select a tab">
-            <p className="mb-3 text-[12.5px] leading-relaxed text-ink-muted">{hint}</p>
-            <select className="field-select w-full" value={tab} onChange={(e) => setTab(e.target.value)}>
-              {appsScriptTabs ? (
-                appsScriptTabs.map((s) => (
+          <ModalSection title={hasTabChoice ? 'Select a tab' : 'Fetching the sheet'}>
+            <p className="text-[12.5px] leading-relaxed text-ink-muted">{hint}</p>
+            {hasTabChoice && (
+              <select
+                className="field-select mt-3 w-full"
+                value={tab}
+                onChange={(e) => setTab(e.target.value)}
+              >
+                {appsScriptTabs.map((s) => (
                   <option key={s.name} value={s.name}>
                     {s.name}
                   </option>
-                ))
-              ) : (
-                <>
-                  <option value="">Tab: from link (or first)</option>
-                  {proj.sheetTabConfig.map((t) => (
-                    <option key={t.id} value={t.value}>
-                      {t.label}
-                    </option>
-                  ))}
-                </>
-              )}
-            </select>
+                ))}
+              </select>
+            )}
           </ModalSection>
           <ModalActions>
             <button className="btn" onClick={() => setStep(1)}>
               Back
             </button>
-            <button className="btn-primary" disabled={busy} onClick={() => fetchNow(tab)}>
-              {busy ? 'Fetching…' : 'Fetch sheet'}
+            <button className="btn-primary" disabled={busy} onClick={() => fetchNow(hasTabChoice ? tab : '')}>
+              {busy ? 'Fetching…' : hasTabChoice ? 'Fetch this tab' : 'Retry fetch'}
             </button>
           </ModalActions>
         </>

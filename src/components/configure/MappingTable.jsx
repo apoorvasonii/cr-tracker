@@ -1,5 +1,6 @@
 import { useApp } from '../../state/AppContext'
 import { clearColumnMapping, removeCustomColumn } from '../../state/actions'
+import { isManualProject } from '../../lib/model'
 import ConfigCard from './ConfigCard'
 
 const DASH = '—'
@@ -32,6 +33,7 @@ function TypeTag({ type }) {
 export default function MappingTable({ onAddColumn }) {
   const { currentProject, update, showToast } = useApp()
   const m = currentProject.mapping
+  const manual = isManualProject(currentProject)
   const hasHeaders = (currentProject.lastFetchedHeaders || []).length > 0
 
   const clear = (f) => {
@@ -46,8 +48,12 @@ export default function MappingTable({ onAddColumn }) {
 
   return (
     <ConfigCard
-      title="Tracker Columns & Mapping"
-      sub="Source columns come from the sheet; calculated ones are derived; manual ones are only ever edited here."
+      title={manual ? 'Tracker Columns' : 'Tracker Columns & Mapping'}
+      sub={
+        manual
+          ? 'This project has no sheet: every column is filled in on the tracker, except the calculated ones.'
+          : 'Source columns come from the sheet; calculated ones are derived; manual ones are only ever edited here.'
+      }
       action={
         <button className="btn btn-sm" onClick={onAddColumn}>
           + Column
@@ -57,8 +63,8 @@ export default function MappingTable({ onAddColumn }) {
       <table className="cfg-table">
         <thead>
           <tr>
-            <th style={{ width: '28%' }}>Tracker Column</th>
-            <th style={{ width: '42%' }}>Google Sheet Column</th>
+            <th style={{ width: manual ? '60%' : '28%' }}>Tracker Column</th>
+            {!manual && <th style={{ width: '42%' }}>Google Sheet Column</th>}
             <th style={{ width: '16%' }}>Type</th>
             <th style={{ width: '14%' }} />
           </tr>
@@ -72,14 +78,16 @@ export default function MappingTable({ onAddColumn }) {
                 {f.label}
                 {f.required && <span className="ml-1 text-ink-muted">*</span>}
               </td>
-              <td className={value ? '' : 'text-ink-muted'}>
-                {f.required && !hasHeaders ? 'Connect a sheet to map' : value || 'Not mapped'}
-              </td>
+              {!manual && (
+                <td className={value ? '' : 'text-ink-muted'}>
+                  {f.required && !hasHeaders ? 'Connect a sheet to map' : value || 'Not mapped'}
+                </td>
+              )}
               <td>
-                <TypeTag type="source" />
+                <TypeTag type={manual ? 'manual' : 'source'} />
               </td>
               <td className="text-right">
-                {value && !f.required && (
+                {!manual && value && !f.required && (
                   <button
                     className="rounded-lg px-2 py-1 text-[15px] text-ink-muted hover:bg-red-50 hover:text-red-600"
                     title={`Unmap ${f.label}`}
@@ -96,7 +104,7 @@ export default function MappingTable({ onAddColumn }) {
           {['Overall Age', 'Age in Current State'].map((label) => (
             <tr key={label}>
               <td className="font-medium">{label}</td>
-              <td className="text-ink-muted">{DASH}</td>
+              {!manual && <td className="text-ink-muted">{DASH}</td>}
               <td>
                 <TypeTag type="calculated" />
               </td>
@@ -106,7 +114,7 @@ export default function MappingTable({ onAddColumn }) {
 
           <tr>
             <td className="font-medium">Flags</td>
-            <td className="text-ink-muted">{DASH}</td>
+            {!manual && <td className="text-ink-muted">{DASH}</td>}
             <td>
               <TypeTag type="manual" />
             </td>
@@ -116,9 +124,11 @@ export default function MappingTable({ onAddColumn }) {
           {(currentProject.customColumns || []).map((c) => (
             <tr key={c.id}>
               <td className="font-medium">{c.label}</td>
-              <td className={c.type === 'manual' || !c.mappedColumn ? 'text-ink-muted' : ''}>
-                {c.type === 'manual' ? DASH : c.mappedColumn || 'Not mapped'}
-              </td>
+              {!manual && (
+                <td className={c.type === 'manual' || !c.mappedColumn ? 'text-ink-muted' : ''}>
+                  {c.type === 'manual' ? DASH : c.mappedColumn || 'Not mapped'}
+                </td>
+              )}
               <td>
                 <TypeTag type={c.type === 'manual' ? 'manual' : 'source'} />
               </td>

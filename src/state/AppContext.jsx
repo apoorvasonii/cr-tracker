@@ -1,7 +1,7 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react'
 import { Store, installStoreFlushHandlers } from './storage'
 import { loadInitialState } from './initialState'
-import { getProjectById } from '../lib/model'
+import { getProjectById, isManualProject } from '../lib/model'
 import { fetchSheetForProject } from '../lib/sheets'
 import { applySyncToProject, recordSyncOutcome } from '../lib/sync'
 import { isSharedMode } from '../lib/supabase'
@@ -136,6 +136,14 @@ export function AppProvider({ children }) {
   const syncProject = useCallback(
     (projectId) => {
       const snapshot = getProjectById(stateRef.current.projects, projectId)
+      if (isManualProject(snapshot)) {
+        // Nothing to pull: this project's rows only ever come from the tracker.
+        return Promise.resolve({
+          success: false, projectId, skipped: true, recordsFetched: 0, recordsProcessed: 0,
+          recordsCreated: 0, recordsUpdated: 0, warnings: [],
+          errors: ['This is a tracker-only project — it has no Google Sheet to sync.'],
+        })
+      }
       if (!snapshot) {
         return Promise.resolve({
           success: false, projectId, recordsFetched: 0, recordsProcessed: 0,
@@ -177,7 +185,9 @@ export function AppProvider({ children }) {
   const syncAllProjects = useCallback(
     () =>
       Promise.all(
-        stateRef.current.projects.map((p) => syncProject(p.id).then((result) => ({ project: p, result })))
+        stateRef.current.projects
+          .filter((p) => !isManualProject(p))
+          .map((p) => syncProject(p.id).then((result) => ({ project: p, result })))
       ),
     [syncProject]
   )

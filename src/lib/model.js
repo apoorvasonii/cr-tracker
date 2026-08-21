@@ -21,6 +21,7 @@ export function defaultStatusConfig() {
   return []
 }
 
+
 /**
  * Overall Status tiles. Every tile — including Total, Live and In Pipeline — is one
  * of these, so nothing about the panel is hardcoded. `source` decides what it counts:
@@ -89,6 +90,19 @@ export function makeStatusFromSheetValue(rawValue, existing) {
   }
 }
 
+/** Builds a status from a label typed on the tracker (tracker-only projects). */
+export function makeStatusFromLabel(label, existing) {
+  const trimmed = label.toString().trim()
+  return {
+    key: slugifyStatus(trimmed, existing),
+    label: trimmed,
+    color: STATUS_PALETTE[existing.length % STATUS_PALETTE.length],
+    showInActionable: true,
+    showInBriefing: true,
+    category: 'pipeline',
+  }
+}
+
 export function defaultFlagConfig() {
   return [
     {
@@ -101,18 +115,22 @@ export function defaultFlagConfig() {
   ]
 }
 
+/** The delivery-side party, opposite the client/LOB. Fixed for every project. */
+export const VENDOR_NAME = 'Salescode'
+
 export function defaultMapping() {
   return { name: '', section: '', action: '', planned: '', idColumn: '', brdDateCol: '', movedDateCol: '' }
 }
 
-export function makeProject(lobName, displayName, existingProjects = []) {
+/** A project either mirrors a Google Sheet ('sheet') or is filled in by hand ('manual'). */
+export const isManualProject = (proj) => !!proj && proj.source === 'manual'
+
+export function makeProject(lobName, displayName, existingProjects = [], source = 'sheet') {
   return {
     id: slugifyId(lobName, existingProjects),
     lobName: lobName || 'New Project',
     displayName: displayName || lobName || 'New Project',
-    // The delivery-side party, opposite the client/LOB. Configurable per project:
-    // it labels the Next Action On options, the Briefing's second column and the footer.
-    vendorName: 'Delivery Partner',
+    source, // 'sheet' = synced from Google Sheets, 'manual' = rows entered in the tracker
     dateOrder: 'dmy', // how to read ambiguous numeric sheet dates: 'dmy' | 'mdy'
     googleSheetUrl: '',
     sheetTabValue: '',
@@ -120,10 +138,10 @@ export function makeProject(lobName, displayName, existingProjects = []) {
     statusConfig: defaultStatusConfig(),
     statusMapping: [], // [{ id, sheetValue, statusKey }]
     discoveredStatusValues: [], // raw values last seen in the mapped status column
+    discoveredActionValues: [], // raw values last seen in the mapped Next Action On column
     ignoredStatusValues: [], // discovered values dismissed as "don't ask again"
     flagConfig: defaultFlagConfig(),
     overallMetrics: defaultOverallMetrics(),
-    sheetTabConfig: [],
     customColumns: [], // [{ id, label, type: 'sheet'|'manual', mappedColumn }]
     lastSyncedAt: null,
     syncStatus: 'never', // never | syncing | success | failed
@@ -156,7 +174,7 @@ export function makeNewRecord(projectId, sourceRecordId, recordId, incoming) {
     // The sheet's own status wording, kept so Status Mapping edits can be replayed
     // onto existing rows without re-fetching the sheet.
     rawSection: incoming.rawSection || '',
-    action: incoming.action || 'client',
+    action: incoming.action || '',
     planned: incoming.planned || '-',
     overall: incoming.overall || '-',
     age: incoming.age || '-',
@@ -180,6 +198,17 @@ export function getStatus(projects, key, projectId) {
   const list = (proj && proj.statusConfig) || []
   return list.find((s) => s.key === key) || UNMAPPED_STATUS
 }
+
+/**
+ * Responsibility a row carries. '' is a real state — the sheet's cell was blank or
+ * named someone the tracker can't place — and stays that way until a person picks
+ * a side on the tracker, rather than being guessed as either party.
+ */
+export const UNASSIGNED_ACTION = ''
+export const actionLabelOf = (proj, action) =>
+  action === 'vendor' ? VENDOR_NAME : action === 'client' ? (proj ? proj.lobName : 'Client') : 'Unassigned'
+export const actionColorOf = (action) =>
+  action === 'vendor' ? '#4a7fae' : action === 'client' ? '#8a5a3f' : '#8a94a2'
 
 /** Category a status belongs to. */
 export const UNCOUNTED_CATEGORY = { id: '', label: 'Not counted' }

@@ -19,6 +19,11 @@ create index if not exists tracker_entities_project_idx
   on tracker_entities ((data->>'projectId'))
   where kind = 'row';
 
+-- Postgres checks GRANTs before RLS, and newer Supabase projects don't give the
+-- anon role privileges on new tables automatically. Without this the API returns
+-- 42501 "permission denied" even with a policy in place.
+grant select, insert, update, delete on table public.tracker_entities to anon;
+
 alter table tracker_entities enable row level security;
 
 -- "Anyone with the link can edit": the anon key is public in a browser app, so this
