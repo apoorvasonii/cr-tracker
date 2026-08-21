@@ -20,8 +20,13 @@ export function resolveAction(proj, rawValue) {
   if (!value) return null
 
   const names = (a, b) => a && b && (a.includes(b) || b.includes(a))
-  if (names(value, normalize(VENDOR_NAME))) return 'vendor'
-  if (names(value, normalize(proj.lobName))) return 'client'
+  const vendor = names(value, normalize(VENDOR_NAME))
+  const client = names(value, normalize(proj.lobName))
+  // A cell naming both parties — "Salescode & Acme", "both" — is a joint action,
+  // not a coin toss between the two.
+  if ((vendor && client) || value === 'both') return 'both'
+  if (vendor) return 'vendor'
+  if (client) return 'client'
   return null
 }
 

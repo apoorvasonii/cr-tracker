@@ -81,7 +81,7 @@ export default function CrRowsCard() {
 
   const statuses = statusUniverse(state)
   const statusKeys = statuses.map((s) => s.key)
-  const actionKeys = ['client', 'vendor', '']
+  const actionKeys = ['client', 'vendor', 'both', '']
   const effectiveStatus = statusFilter ?? new Set(statusKeys)
   const effectiveAction = actionFilter ?? new Set(actionKeys)
 
@@ -142,6 +142,7 @@ export default function CrRowsCard() {
             options={[
               { value: 'client', label: lobLabel },
               { value: 'vendor', label: vendorLabel },
+              { value: 'both', label: `${lobLabel} + ${vendorLabel}` },
               { value: '', label: 'Unassigned' },
             ]}
             selected={effectiveAction}

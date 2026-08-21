@@ -10,9 +10,9 @@ export default function ProjectDetailsCard() {
   return (
     <ConfigCard
       title="Project Details"
-      sub="LOB name labels the client side of the tracker, display name titles the briefing, and the data source decides whether CRs come from a sheet."
+      sub="LOB name labels the client side of the tracker, display name and briefing header title the briefing, and the data source decides whether CRs come from a sheet."
     >
-      <div className="grid gap-4 sm:grid-cols-2 lg:max-w-3xl lg:grid-cols-3">
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <label className="block">
           <span className="mb-1.5 block text-[10.5px] font-semibold uppercase tracking-wider text-ink-muted">
             LOB Name
@@ -63,6 +63,19 @@ export default function ProjectDetailsCard() {
             className="field w-full"
             value={currentProject.displayName}
             onChange={(e) => update(patchProject('displayName', e.target.value))}
+          />
+        </label>
+        <label className="block">
+          <span className="mb-1.5 block text-[10.5px] font-semibold uppercase tracking-wider text-ink-muted">
+            Briefing Header
+          </span>
+          <input
+            type="text"
+            className="field w-full"
+            placeholder="CR Tracker"
+            title="The line across the top of the Briefing and the email, after the display name"
+            value={currentProject.briefingHeader || ''}
+            onChange={(e) => update(patchProject('briefingHeader', e.target.value))}
           />
         </label>
       </div>

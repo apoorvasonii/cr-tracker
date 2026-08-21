@@ -2,6 +2,7 @@ import { useApp } from '../../state/AppContext'
 import { actionColorOf, actionLabelOf, percentBase, scopedTiles, VENDOR_NAME } from '../../lib/model'
 import { computeAgeInState, computeOverallAge, formatPlanned } from '../../lib/dates'
 import { tintOf, titleOf } from '../../lib/colors'
+import { toTitleCase } from '../../lib/strings'
 import {
   actionableLines,
   briefingRows,
@@ -75,7 +76,7 @@ function StatusSection({ state, group, showProjectName, ageUnit }) {
                         {f.symbol}{' '}
                       </span>
                     ))}
-                    {r.name}
+                    {toTitleCase(r.name)}
                   </td>
                   <td>
                     <span className="pill" style={{ backgroundColor: s.color }}>
@@ -106,18 +107,22 @@ export default function BriefingPreview() {
   // is set to appear in the Briefing.
   const rows = briefingRows(state)
   const excluded = excludedFromBriefing(state)
-  const { displayTitle, lobLabel, vendorLabel } = briefingTitles(state)
+  const { displayTitle, headerLabel, lobLabel, vendorLabel } = briefingTitles(state)
   const tiles = scopedTiles(state)
   const base = percentBase(tiles)
 
+  // Joint rows get their own block rather than being counted twice or split.
   const clientRows = rows.filter((r) => r.action === 'client')
   const vendorRows = rows.filter((r) => r.action === 'vendor')
+  const bothRows = rows.filter((r) => r.action === 'both')
 
   return (
     // `briefing` scopes the email-mirroring stylesheet in styles/app.css.
     <div className="briefing">
       <div className="masthead">
-        <h1>{displayTitle} — CR TRACKER</h1>
+        <h1>
+          {displayTitle} — {headerLabel}
+        </h1>
       </div>
 
       <div className="panel">
@@ -163,8 +168,15 @@ export default function BriefingPreview() {
             <div className="team-name blue">{vendorLabel.toUpperCase()}</div>
             <div className="team-n blue">{vendorRows.length}</div>
           </div>
-          <div className="breakdown" style={{ borderRight: 'none' }}>
+          <div className="breakdown">
             <Breakdown lines={actionableLines(state, vendorRows)} />
+          </div>
+          <div className="team-block">
+            <div className="team-name violet">{`${lobLabel} + ${vendorLabel}`.toUpperCase()}</div>
+            <div className="team-n violet">{bothRows.length}</div>
+          </div>
+          <div className="breakdown" style={{ borderRight: 'none' }}>
+            <Breakdown lines={actionableLines(state, bothRows)} />
           </div>
         </div>
       </div>

@@ -110,6 +110,7 @@ export function briefingTitles(state) {
   const proj = getProjectById(state.projects, state.currentProjectId)
   return {
     displayTitle: proj ? proj.displayName : 'All Projects',
+    headerLabel: (proj && proj.briefingHeader) || 'CR Tracker',
     lobLabel: proj ? proj.lobName : 'Client',
     vendorLabel: VENDOR_NAME,
   }

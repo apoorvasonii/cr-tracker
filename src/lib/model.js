@@ -130,6 +130,8 @@ export function makeProject(lobName, displayName, existingProjects = [], source 
     id: slugifyId(lobName, existingProjects),
     lobName: lobName || 'New Project',
     displayName: displayName || lobName || 'New Project',
+    // The line across the top of the Briefing, after the display name.
+    briefingHeader: 'CR Tracker',
     source, // 'sheet' = synced from Google Sheets, 'manual' = rows entered in the tracker
     dateOrder: 'dmy', // how to read ambiguous numeric sheet dates: 'dmy' | 'mdy'
     googleSheetUrl: '',
@@ -205,10 +207,20 @@ export function getStatus(projects, key, projectId) {
  * a side on the tracker, rather than being guessed as either party.
  */
 export const UNASSIGNED_ACTION = ''
-export const actionLabelOf = (proj, action) =>
-  action === 'vendor' ? VENDOR_NAME : action === 'client' ? (proj ? proj.lobName : 'Client') : 'Unassigned'
+
+/** Every responsibility a row can carry, in the order they're offered. */
+export const ACTIONS = ['client', 'vendor', 'both', '']
+
+export const actionLabelOf = (proj, action) => {
+  const lob = proj ? proj.lobName : 'Client'
+  if (action === 'vendor') return VENDOR_NAME
+  if (action === 'client') return lob
+  if (action === 'both') return `${lob} + ${VENDOR_NAME}`
+  return 'Unassigned'
+}
+
 export const actionColorOf = (action) =>
-  action === 'vendor' ? '#4a7fae' : action === 'client' ? '#8a5a3f' : '#8a94a2'
+  action === 'vendor' ? '#4a7fae' : action === 'client' ? '#8a5a3f' : action === 'both' ? '#6a5a9a' : '#8a94a2'
 
 /** Category a status belongs to. */
 export const UNCOUNTED_CATEGORY = { id: '', label: 'Not counted' }

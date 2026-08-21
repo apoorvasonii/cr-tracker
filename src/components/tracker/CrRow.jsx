@@ -119,6 +119,7 @@ export default function CrRow({ row, index, customCols, readOnly, compact }) {
           <option value="">{actionLabelOf(rowProj, '')}</option>
           <option value="client">{rowProj.lobName}</option>
           <option value="vendor">{VENDOR_NAME}</option>
+          <option value="both">{actionLabelOf(rowProj, 'both')}</option>
         </select>
       </td>
 
