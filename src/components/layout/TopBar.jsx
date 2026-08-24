@@ -4,6 +4,7 @@ import { deleteProject, selectProject } from '../../state/actions'
 import { relativeSyncTime } from '../../lib/dates'
 import { isManualProject } from '../../lib/model'
 import AddProjectModal from '../modals/AddProjectModal'
+import { removedText } from '../../lib/sync'
 
 function SyncLine({ project }) {
   if (!project) {
@@ -86,7 +87,7 @@ export default function TopBar({ onGoToConfig, onSyncAllResults }) {
         const warn = result.warnings.length
           ? ` (${result.warnings.length} warning${result.warnings.length === 1 ? '' : 's'})`
           : ''
-        showToast(`Synced ${name}: ${result.recordsCreated} added, ${result.recordsUpdated} updated${warn}`)
+        showToast(`Synced ${name}: ${result.recordsCreated} added, ${result.recordsUpdated} updated${removedText(result)}${warn}`)
       } else {
         showToast(`Sync failed for ${name}: ${result.errors[0] || 'unknown error'}`, true)
       }

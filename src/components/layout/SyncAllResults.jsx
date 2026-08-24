@@ -1,3 +1,6 @@
+
+import { removedText } from '../../lib/sync'
+
 export default function SyncAllResults({ results, onDismiss }) {
   if (!results) return null
 
@@ -23,7 +26,7 @@ export default function SyncAllResults({ results, onDismiss }) {
                 <b className="font-semibold">{project.lobName}</b>{' '}
                 {result.success ? (
                   <>
-                    — {result.recordsCreated} added, {result.recordsUpdated} updated
+                    — {result.recordsCreated} added, {result.recordsUpdated} updated{removedText(result)}
                     {result.warnings.length > 0 && (
                       <span className="text-amber-700">
                         {' '}

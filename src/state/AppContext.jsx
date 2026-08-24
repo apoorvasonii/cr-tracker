@@ -140,14 +140,14 @@ export function AppProvider({ children }) {
         // Nothing to pull: this project's rows only ever come from the tracker.
         return Promise.resolve({
           success: false, projectId, skipped: true, recordsFetched: 0, recordsProcessed: 0,
-          recordsCreated: 0, recordsUpdated: 0, warnings: [],
+          recordsCreated: 0, recordsUpdated: 0, recordsRemoved: 0, warnings: [],
           errors: ['This is a tracker-only project — it has no Google Sheet to sync.'],
         })
       }
       if (!snapshot) {
         return Promise.resolve({
           success: false, projectId, recordsFetched: 0, recordsProcessed: 0,
-          recordsCreated: 0, recordsUpdated: 0, warnings: [], errors: ['Project not found'],
+          recordsCreated: 0, recordsUpdated: 0, recordsRemoved: 0, warnings: [], errors: ['Project not found'],
         })
       }
 
@@ -170,7 +170,7 @@ export function AppProvider({ children }) {
           const message = err && err.message ? err.message : String(err)
           const failed = {
             success: false, projectId, recordsFetched: 0, recordsProcessed: 0,
-            recordsCreated: 0, recordsUpdated: 0, warnings: [], errors: [message],
+            recordsCreated: 0, recordsUpdated: 0, recordsRemoved: 0, warnings: [], errors: [message],
           }
           update((draft) => {
             const proj = getProjectById(draft.projects, projectId)

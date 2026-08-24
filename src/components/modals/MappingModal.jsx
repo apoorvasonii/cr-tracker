@@ -3,6 +3,7 @@ import Modal, { FieldGrid, FieldLabel, ModalActions, ModalSection } from '../ui/
 import { useApp } from '../../state/AppContext'
 import { saveMapping, setFetchedHeaders } from '../../state/actions'
 import { guessColumn, usefulHeaders } from '../../lib/sheets'
+import { removedText } from '../../lib/sync'
 
 /**
  * Guess lists are ordered: exact (normalized) matches are tried across the whole
@@ -151,7 +152,7 @@ export default function MappingModal({ fetched, onClose }) {
       const warn = result.warnings.length
         ? ` (${result.warnings.length} warning${result.warnings.length === 1 ? '' : 's'})`
         : ''
-      showToast(`Mapping saved. Synced: ${result.recordsCreated} added, ${result.recordsUpdated} updated${warn}`)
+      showToast(`Mapping saved. Synced: ${result.recordsCreated} added, ${result.recordsUpdated} updated${removedText(result)}${warn}`)
     } else {
       showToast('Mapping saved')
     }

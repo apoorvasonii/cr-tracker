@@ -2,6 +2,7 @@ import { useApp } from '../../state/AppContext'
 import { patchProject } from '../../state/actions'
 import { relativeSyncTime } from '../../lib/dates'
 import ConfigCard from './ConfigCard'
+import { removedText } from '../../lib/sync'
 
 export default function SheetConnectionCard({ onOpenConnect }) {
   const { currentProject, update, showToast, syncProject } = useApp()
@@ -10,7 +11,7 @@ export default function SheetConnectionCard({ onOpenConnect }) {
   const syncNow = () => {
     showToast('Syncing ' + currentProject.lobName + '...')
     syncProject(currentProject.id).then((result) => {
-      if (result.success) showToast(`Synced: ${result.recordsCreated} added, ${result.recordsUpdated} updated`)
+      if (result.success) showToast(`Synced: ${result.recordsCreated} added, ${result.recordsUpdated} updated${removedText(result)}`)
       else showToast(`Sync failed: ${result.errors[0] || 'unknown error'}`, true)
     })
   }
@@ -46,7 +47,7 @@ export default function SheetConnectionCard({ onOpenConnect }) {
         {stats && (
           <>
             <p className="mt-1">
-              Last sync: {stats.recordsFetched} fetched, {stats.recordsCreated} added, {stats.recordsUpdated} updated
+              Last sync: {stats.recordsFetched} fetched, {stats.recordsCreated} added, {stats.recordsUpdated} updated{removedText(stats)}
             </p>
             {stats.warnings?.length > 0 && (
               <details className="mt-2">

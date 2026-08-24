@@ -93,6 +93,7 @@ export function applySyncToProject(crData, proj, headers, rows) {
     recordsProcessed: 0,
     recordsCreated: 0,
     recordsUpdated: 0,
+    recordsRemoved: 0,
     warnings,
     errors,
     ...extra,
@@ -101,6 +102,16 @@ export function applySyncToProject(crData, proj, headers, rows) {
   if (!m.name) {
     errors.push(
       'No "Feature" column mapped yet — open "Connect & Configure Mapping" and map at least the Feature (CR Name) column.'
+    )
+    return emptyResult()
+  }
+
+  // Without the Feature column every row parses as nameless, which would look
+  // exactly like "the sheet was emptied" — and take every record with it. A
+  // renamed or deleted Feature column is a mapping problem, not a data change.
+  if (!headers.includes(m.name)) {
+    errors.push(
+      `The mapped Feature column "${m.name}" is not in the sheet any more — fix the mapping under "Connect & Configure Mapping". Nothing was changed or removed.`
     )
     return emptyResult()
   }
@@ -136,6 +147,7 @@ export function applySyncToProject(crData, proj, headers, rows) {
   let created = 0
   let updated = 0
   let processed = 0
+  let removed = 0
 
   const computed = rows
     .map((row) => {
@@ -208,6 +220,32 @@ export function applySyncToProject(crData, proj, headers, rows) {
     }
   })
 
+  // A feature deleted from the sheet should disappear from the tracker too. Rows
+  // typed into the app by hand were never in the sheet, so they are never swept.
+  // A fetch that yields no usable rows is treated as "nothing to compare
+  // against" rather than "the sheet is empty", so a blank or malformed read
+  // can't wipe a project.
+  if (computed.length) {
+    const seenIds = new Set(computed.map((c) => proj.id + '::' + c.sourceRecordId))
+    for (let i = crData.length - 1; i >= 0; i--) {
+      const r = crData[i]
+      if (r.projectId !== proj.id) continue
+      if ((r.sourceRecordId || '').startsWith('manual:')) continue
+      if (seenIds.has(r.recordId)) continue
+      crData.splice(i, 1)
+      removed++
+    }
+    if (removed) {
+      warnings.push(
+        `Removed ${removed} row${removed === 1 ? '' : 's'} that ${removed === 1 ? 'is' : 'are'} no longer in the sheet.`
+      )
+    }
+  } else if (crData.some((r) => r.projectId === proj.id)) {
+    warnings.push(
+      'The sheet returned no usable rows, so nothing was removed — existing tracker rows were left untouched.'
+    )
+  }
+
   proj.discoveredStatusValues = [...statusValuesSeen]
   proj.discoveredActionValues = [...actionValuesSeen]
 
@@ -248,6 +286,7 @@ export function applySyncToProject(crData, proj, headers, rows) {
     recordsProcessed: processed,
     recordsCreated: created,
     recordsUpdated: updated,
+    recordsRemoved: removed,
     warnings,
     errors,
   }
@@ -260,3 +299,7 @@ export function recordSyncOutcome(proj, result) {
   proj.lastSyncedAt = Date.now()
   proj.lastSyncStats = result
 }
+
+/** " , N removed" — omitted entirely when a sync removed nothing. */
+export const removedText = (result) =>
+  result && result.recordsRemoved ? `, ${result.recordsRemoved} removed` : ''
