@@ -6,9 +6,7 @@
 import { getFlag, getProjectById, getStatus, VENDOR_NAME } from './model'
 
 export function scopeRows(state) {
-  return state.currentProjectId === 'ALL'
-    ? state.crData.slice()
-    : state.crData.filter((r) => r.projectId === state.currentProjectId)
+  return state.crData.filter((r) => r.projectId === state.currentProjectId)
 }
 
 /**
@@ -64,9 +62,8 @@ export function actionableLines(state, rows) {
 }
 
 /**
- * One section per (project, status), sequenced by the order statuses are listed
- * in Configure → Statuses — not by which CR happened to appear first. Across
- * "All Projects", sections stay grouped by project, in project order.
+ * One section per status, sequenced by the order statuses are listed in
+ * Configure → Statuses — not by which CR happened to appear first.
  */
 export function statusGroups(state, rows) {
   const groups = new Map()
@@ -109,7 +106,7 @@ export const rowFlags = (state, row) =>
 export function briefingTitles(state) {
   const proj = getProjectById(state.projects, state.currentProjectId)
   return {
-    displayTitle: proj ? proj.displayName : 'All Projects',
+    displayTitle: proj ? proj.displayName : '',
     headerLabel: (proj && proj.briefingHeader) || 'CR Tracker',
     subheaderLabel: (proj && proj.briefingSubheader) || '',
     lobLabel: proj ? proj.lobName : 'Client',

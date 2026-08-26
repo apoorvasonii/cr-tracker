@@ -205,8 +205,10 @@ export function AppProvider({ children }) {
     [update]
   )
 
+  // The app always looks at exactly one project; if the selected id no longer
+  // exists (deleted elsewhere, or an old saved selection), fall back to the first.
   const currentProject = useMemo(
-    () => (state.currentProjectId === 'ALL' ? null : getProjectById(state.projects, state.currentProjectId)),
+    () => getProjectById(state.projects, state.currentProjectId) || state.projects[0] || null,
     [state.projects, state.currentProjectId]
   )
 
@@ -214,7 +216,6 @@ export function AppProvider({ children }) {
     () => ({
       state,
       currentProject,
-      isAllProjects: state.currentProjectId === 'ALL',
       isSharedMode,
       remoteStatus,
       update,

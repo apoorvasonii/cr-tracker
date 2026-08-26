@@ -27,8 +27,8 @@ function isOverdue(row, statusCategoryId, dateOrder) {
 /** Sentinel option value: "type a status that doesn't exist yet". */
 const NEW_STATUS = '__new_status__'
 
-/** `customCols` is the column set for the current scope; a row's project may not have all of them. */
-export default function CrRow({ row, index, customCols, readOnly, compact }) {
+/** `customCols` is the project's custom column set, in the order it configures them. */
+export default function CrRow({ row, index, customCols, compact }) {
   const { state, update, showToast } = useApp()
   const rowProj = getProjectById(state.projects, row.projectId)
   if (!rowProj) return null
@@ -39,7 +39,6 @@ export default function CrRow({ row, index, customCols, readOnly, compact }) {
   const plannedDate = parseDateValue(row.planned, rowProj.dateOrder)
   const plannedIso = plannedDate ? toIsoDate(plannedDate) : ''
   const hasOverride = row.overrides && Object.values(row.overrides).some(Boolean)
-  const ownColsByLabel = new Map((rowProj.customColumns || []).map((c) => [c.label, c]))
 
   const cell = `px-3 align-top ${compact ? 'py-1.5' : 'py-2.5'}`
 
@@ -56,14 +55,6 @@ export default function CrRow({ row, index, customCols, readOnly, compact }) {
         {overdue && <div className="mt-0.5 text-[9.5px] font-bold uppercase tracking-wide text-red-600">Overdue</div>}
       </td>
 
-      {readOnly && (
-        <td className={cell}>
-          <span className="inline-block rounded-full bg-brand-50 px-2.5 py-1 text-[10.5px] font-semibold text-brand-700">
-            {rowProj.lobName}
-          </span>
-        </td>
-      )}
-
       <td className={cell}>
         <input
           type="text"
@@ -72,7 +63,6 @@ export default function CrRow({ row, index, customCols, readOnly, compact }) {
                      focus:border-brand-500 focus:bg-white focus:ring-2 focus:ring-brand-500/15
                      read-only:hover:border-transparent"
           value={row.name}
-          readOnly={readOnly}
           onChange={(e) => update(updateRow(row.recordId, 'name', e.target.value))}
         />
       </td>
@@ -81,7 +71,6 @@ export default function CrRow({ row, index, customCols, readOnly, compact }) {
         <StatusSelect
           value={row.section}
           color={s.color}
-          disabled={readOnly}
           options={[
             // A row can sit on no status at all (dismissed sheet value, or its status
             // was deleted); keep that visible rather than snapping it to another one.
@@ -108,7 +97,6 @@ export default function CrRow({ row, index, customCols, readOnly, compact }) {
         <select
           className="field-select w-full"
           value={row.action || ''}
-          disabled={readOnly}
           onChange={(e) => update(updateRow(row.recordId, 'action', e.target.value))}
         >
           {/* The two standard parties, this project's own assignees, then blank —
@@ -128,7 +116,6 @@ export default function CrRow({ row, index, customCols, readOnly, compact }) {
           type="date"
           className="field w-full"
           value={plannedIso}
-          readOnly={readOnly}
           onChange={(e) => update(updateRow(row.recordId, 'planned', formatPlanned(e.target.value)))}
         />
       </td>
@@ -138,7 +125,6 @@ export default function CrRow({ row, index, customCols, readOnly, compact }) {
           type="date"
           className="field w-full"
           value={row.brdDate || ''}
-          disabled={readOnly}
           onChange={(e) => update(updateRow(row.recordId, 'brdDate', e.target.value))}
         />
       </td>
@@ -148,33 +134,20 @@ export default function CrRow({ row, index, customCols, readOnly, compact }) {
           type="date"
           className="field w-full"
           value={row.movedDate || ''}
-          disabled={readOnly}
           onChange={(e) => update(updateRow(row.recordId, 'movedDate', e.target.value))}
         />
       </td>
 
-
-      {customCols.map((c) => {
-        const ownCol = ownColsByLabel.get(c.label)
-        if (!ownCol) {
-          return (
-            <td key={c.label} className={`${cell} text-ink-muted`}>
-              —
-            </td>
-          )
-        }
-        return (
-          <td key={c.label} className={cell}>
-            <input
-              type="text"
-              className="field w-full"
-              value={(row.custom && row.custom[ownCol.id]) || ''}
-              readOnly={readOnly}
-              onChange={(e) => update(updateCustomFieldValue(row.recordId, ownCol.id, e.target.value))}
-            />
-          </td>
-        )
-      })}
+      {customCols.map((c) => (
+        <td key={c.id} className={cell}>
+          <input
+            type="text"
+            className="field w-full"
+            value={(row.custom && row.custom[c.id]) || ''}
+            onChange={(e) => update(updateCustomFieldValue(row.recordId, c.id, e.target.value))}
+          />
+        </td>
+      ))}
 
       <td className={cell}>
         <div className="flex flex-wrap gap-1">
@@ -183,7 +156,7 @@ export default function CrRow({ row, index, customCols, readOnly, compact }) {
             return (
               <label
                 key={f.id}
-                className={`chip ${active ? 'chip-active' : ''} ${readOnly ? 'cursor-default' : ''}`}
+                className={`chip ${active ? 'chip-active' : ''}`}
                 style={active ? { backgroundColor: f.color, borderColor: f.color } : undefined}
                 title={f.label}
               >
@@ -191,7 +164,6 @@ export default function CrRow({ row, index, customCols, readOnly, compact }) {
                   type="checkbox"
                   className="hidden"
                   checked={active}
-                  disabled={readOnly}
                   onChange={(e) => update(toggleRowFlag(row.recordId, f.id, e.target.checked))}
                 />
                 {f.symbol}
@@ -212,15 +184,13 @@ export default function CrRow({ row, index, customCols, readOnly, compact }) {
               ↻
             </button>
           )}
-          {!readOnly && (
-            <button
-              className="rounded-lg px-2 py-1 text-[15px] text-ink-muted transition-colors hover:bg-red-50 hover:text-red-600"
-              title="Delete row"
-              onClick={() => update(deleteRow(row.recordId))}
-            >
-              ×
-            </button>
-          )}
+          <button
+            className="rounded-lg px-2 py-1 text-[15px] text-ink-muted transition-colors hover:bg-red-50 hover:text-red-600"
+            title="Delete row"
+            onClick={() => update(deleteRow(row.recordId))}
+          >
+            ×
+          </button>
         </div>
       </td>
     </tr>

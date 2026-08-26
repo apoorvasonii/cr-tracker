@@ -4,7 +4,6 @@ import { addRow, removeCustomColumn, setOverallAgeUnit } from '../../state/actio
 import {
   actionLabelOf,
   actionOptions,
-  allCustomColumnsUnion,
   getProjectById,
   getStatus,
   isManualProject,
@@ -12,17 +11,6 @@ import {
 import FilterDropdown from './FilterDropdown'
 import CrRow from './CrRow'
 import AddColumnModal from '../modals/AddColumnModal'
-
-/** Statuses available to filter on: the current project's, or every project's. */
-function statusUniverse(state) {
-  if (state.currentProjectId !== 'ALL') {
-    const proj = getProjectById(state.projects, state.currentProjectId)
-    return proj ? proj.statusConfig : []
-  }
-  const seen = new Map()
-  state.projects.forEach((p) => p.statusConfig.forEach((s) => { if (!seen.has(s.key)) seen.set(s.key, s) }))
-  return [...seen.values()]
-}
 
 /** Segmented control for the Overall Age unit. The tracker no longer shows the age
     columns, so this shapes the Briefing and the email. */
@@ -70,7 +58,7 @@ function HeaderCell({ label, width, onRemove, align }) {
 }
 
 export default function CrRowsCard() {
-  const { state, currentProject: proj, isAllProjects, update, showToast } = useApp()
+  const { state, currentProject: proj, update, showToast } = useApp()
   const [search, setSearch] = useState('')
   const [openPanel, setOpenPanel] = useState(null)
   const [statusFilter, setStatusFilter] = useState(null) // null = all
@@ -87,27 +75,19 @@ export default function CrRowsCard() {
     setOpenPanel(null)
   }, [state.currentProjectId])
 
-  const statuses = statusUniverse(state)
+  const statuses = proj ? proj.statusConfig : []
   const statusKeys = statuses.map((s) => s.key)
-  // Across "All Projects" the assignees of every project are offered, since the
-  // rows on screen can come from any of them.
-  const actionChoices = isAllProjects
-    ? (() => {
-        const seen = new Map()
-        state.projects.forEach((p) => actionOptions(p).forEach((o) => { if (!seen.has(o.value)) seen.set(o.value, o) }))
-        return [...seen.values()]
-      })()
-    : actionOptions(proj)
+  const actionChoices = actionOptions(proj)
   const actionKeys = actionChoices.map((o) => o.value)
   const effectiveStatus = statusFilter ?? new Set(statusKeys)
   const effectiveAction = actionFilter ?? new Set(actionKeys)
 
-  const customCols = isAllProjects ? allCustomColumnsUnion(state.projects) : proj?.customColumns || []
+  const customCols = proj?.customColumns || []
 
   const visible = useMemo(() => {
     const q = search.toLowerCase().trim()
     return state.crData.filter((row) => {
-      if (!isAllProjects && row.projectId !== state.currentProjectId) return false
+      if (row.projectId !== state.currentProjectId) return false
       // Typing matches what the row shows: its name, its status, or whose court
       // it's in — so "live", "unassigned" or "salescode" all work as searches.
       if (q) {
@@ -128,11 +108,9 @@ export default function CrRowsCard() {
       return true
     })
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [state.crData, state.projects, state.currentProjectId, isAllProjects, search, statusFilter, actionFilter, statusKeys.join()])
+  }, [state.crData, state.projects, state.currentProjectId, search, statusFilter, actionFilter, statusKeys.join()])
 
-  const scopedTotal = isAllProjects
-    ? state.crData.length
-    : state.crData.filter((r) => r.projectId === state.currentProjectId).length
+  const scopedTotal = state.crData.filter((r) => r.projectId === state.currentProjectId).length
 
   const isFiltered = search || statusFilter || actionFilter
 
@@ -197,16 +175,12 @@ export default function CrRowsCard() {
             <button className="btn text-ink-soft" onClick={() => setCompact((c) => !c)}>
               {compact ? 'Comfortable rows' : 'Compact rows'}
             </button>
-            {!isAllProjects && (
-              <>
-                <button className="btn" onClick={() => setAddColumnOpen(true)}>
-                  + Column
-                </button>
-                <button className="btn-primary" onClick={() => update(addRow())}>
-                  + Row
-                </button>
-              </>
-            )}
+            <button className="btn" onClick={() => setAddColumnOpen(true)}>
+              + Column
+            </button>
+            <button className="btn-primary" onClick={() => update(addRow())}>
+              + Row
+            </button>
           </div>
         </div>
 
@@ -216,7 +190,6 @@ export default function CrRowsCard() {
             <thead className="bg-slate-50/60">
               <tr>
                 <HeaderCell label="#" width="52px" />
-                {isAllProjects && <HeaderCell label="Project" width="120px" />}
                 <HeaderCell label="Feature" width="22%" />
                 <HeaderCell label="Status" width="185px" />
                 <HeaderCell label="Next Action On" width="165px" />
@@ -228,14 +201,10 @@ export default function CrRowsCard() {
                     key={c.label}
                     label={c.label}
                     width="140px"
-                    onRemove={
-                      isAllProjects
-                        ? undefined
-                        : () => {
-                            update(removeCustomColumn(c.id))
-                            showToast(`Column "${c.label}" removed`)
-                          }
-                    }
+                    onRemove={() => {
+                      update(removeCustomColumn(c.id))
+                      showToast(`Column "${c.label}" removed`)
+                    }}
                   />
                 ))}
                 <HeaderCell label="Flags" width="120px" />
@@ -249,7 +218,6 @@ export default function CrRowsCard() {
                   index={i + 1}
                   row={row}
                   customCols={customCols}
-                  readOnly={isAllProjects}
                   compact={compact}
                 />
               ))}

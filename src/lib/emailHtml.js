@@ -56,7 +56,6 @@ export function buildEmailHtml(state) {
   const rows = briefingRows(state)
   const { displayTitle, headerLabel, subheaderLabel, lobLabel, vendorLabel } = briefingTitles(state)
   const F = 'font-family:Arial,Helvetica,sans-serif;'
-  const isAll = state.currentProjectId === 'ALL'
   const ageUnit = state.display?.overallAgeUnit
 
   const tiles = scopedTiles(state)
@@ -134,9 +133,7 @@ export function buildEmailHtml(state) {
   statusGroups(state, rows).forEach(({ project: p, status: s, rows: groupRows }) => {
     const tint = tintOf(s.color)
     const title = titleOf(s.color)
-    const heading = isAll
-      ? `${escapeHtml(p.lobName)} – ${escapeHtml(s.label.toUpperCase())}`
-      : escapeHtml(s.label.toUpperCase())
+    const heading = escapeHtml(s.label.toUpperCase())
     const th = `padding:10px 14px; font-size:10.5px; font-weight:800; letter-spacing:0.6px; color:${title}; text-transform:uppercase;`
 
     html += `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border:1px solid ${LINE}; border-radius:10px; margin-bottom:18px; ${F}">

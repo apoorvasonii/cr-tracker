@@ -342,35 +342,14 @@ export function projectTiles(state, proj) {
   }))
 }
 
-/**
- * Tiles for the current scope. Across "All Projects" tiles are merged by label and
- * summed, so each project can define its own vocabulary and the totals still add up.
- */
+/** Tiles for the project being viewed. */
 export function scopedTiles(state) {
-  if (state.currentProjectId !== 'ALL') {
-    const proj = getProjectById(state.projects, state.currentProjectId)
-    return proj ? projectTiles(state, proj) : []
-  }
-  const merged = new Map()
-  state.projects.forEach((p) =>
-    projectTiles(state, p).forEach((t) => {
-      const existing = merged.get(t.label)
-      if (existing) existing.value += t.value
-      else merged.set(t.label, { ...t, key: t.label })
-    })
-  )
-  return [...merged.values()]
+  const proj = getProjectById(state.projects, state.currentProjectId)
+  return proj ? projectTiles(state, proj) : []
 }
 
 /** The first tile is the denominator for every other tile's percentage. */
 export const percentBase = (tiles) => (tiles.length ? tiles[0].value : 0)
-
-/** Union of custom columns across all projects, matched by label — for "All Projects". */
-export function allCustomColumnsUnion(projects) {
-  const seen = new Map()
-  projects.forEach((p) => (p.customColumns || []).forEach((c) => { if (!seen.has(c.label)) seen.set(c.label, c) }))
-  return [...seen.values()]
-}
 
 export function getCustomValueForRow(projects, row, label) {
   const proj = getProjectById(projects, row.projectId)

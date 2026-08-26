@@ -19,7 +19,7 @@ export default function GlobalCategoriesTable() {
   return (
     <ConfigCard
       title="Global Status Categories"
-      sub="Shared across every project — each project's statuses map to one of these, which is what makes All Projects aggregation work."
+      sub="Shared across every project — each project's statuses map to one of these, which is what keeps the Overall Status tiles comparable between projects."
       action={
         <button className="btn btn-sm" onClick={() => update(addGlobalCategory())}>
           + Add category

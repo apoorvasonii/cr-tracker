@@ -69,17 +69,12 @@ export default function TopBar({ onGoToConfig, onSyncAllResults }) {
   const { state, currentProject, remoteStatus, update, showToast, syncProject, syncAllProjects } = useApp()
   const [addOpen, setAddOpen] = useState(false)
 
-  const title = currentProject ? currentProject.displayName : 'All Projects'
-  const subtitle = currentProject
-    ? currentProject.lobName
-    : `${state.projects.length} projects`
+  const title = currentProject ? currentProject.displayName : 'No project'
+  const subtitle = currentProject ? currentProject.lobName : 'Add a project to get started'
   const initial = (currentProject?.lobName || 'A').charAt(0).toUpperCase()
 
   const syncCurrent = () => {
-    if (!currentProject) {
-      showToast('Select a specific project first (not "All Projects")', true)
-      return
-    }
+    if (!currentProject) return
     const name = currentProject.lobName
     showToast('Syncing ' + name + '...')
     syncProject(currentProject.id).then((result) => {
@@ -100,10 +95,7 @@ export default function TopBar({ onGoToConfig, onSyncAllResults }) {
   }
 
   const removeProject = () => {
-    if (!currentProject) {
-      showToast('Select a specific project first', true)
-      return
-    }
+    if (!currentProject) return
     if (state.projects.length <= 1) {
       showToast('You need at least one project', true)
       return
@@ -130,10 +122,9 @@ export default function TopBar({ onGoToConfig, onSyncAllResults }) {
         <div className="flex items-center gap-2">
           <select
             className="field-select min-w-[190px] font-semibold"
-            value={state.currentProjectId}
+            value={currentProject?.id || ''}
             onChange={(e) => update(selectProject(e.target.value))}
           >
-            <option value="ALL">All Projects</option>
             {state.projects.map((p) => (
               <option key={p.id} value={p.id}>
                 {p.lobName}

@@ -45,10 +45,9 @@ export function entitiesToState(rows, fallback) {
     globalCategories: globalCategories?.length ? globalCategories : fallback.globalCategories,
     display: display || fallback.display,
     // Keep viewing whatever this person had selected, if it still exists.
-    currentProjectId:
-      fallback.currentProjectId === 'ALL' || projects.some((p) => p.id === fallback.currentProjectId)
-        ? fallback.currentProjectId
-        : projects[0].id,
+    currentProjectId: projects.some((p) => p.id === fallback.currentProjectId)
+      ? fallback.currentProjectId
+      : projects[0].id,
   }
 }
 
@@ -132,8 +131,8 @@ export function applyRemoteChange(draft, change) {
     if (deleted) {
       draft.projects = draft.projects.filter((p) => p.id !== id)
       draft.crData = draft.crData.filter((r) => r.projectId !== id)
-      if (!draft.projects.some((p) => p.id === draft.currentProjectId) && draft.currentProjectId !== 'ALL') {
-        draft.currentProjectId = draft.projects[0]?.id ?? 'ALL'
+      if (!draft.projects.some((p) => p.id === draft.currentProjectId)) {
+        draft.currentProjectId = draft.projects[0]?.id ?? ''
       }
       return
     }

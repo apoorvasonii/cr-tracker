@@ -93,7 +93,10 @@ export function loadInitialState() {
     const projects = saved.projects.map(migrateProject)
     return {
       projects,
-      currentProjectId: saved.currentProjectId || projects[0].id,
+      // 'ALL' was the old cross-project view; the app now always scopes to one project.
+      currentProjectId: projects.some((p) => p.id === saved.currentProjectId)
+        ? saved.currentProjectId
+        : projects[0].id,
       globalCategories:
         Array.isArray(saved.globalCategories) && saved.globalCategories.length
           ? saved.globalCategories

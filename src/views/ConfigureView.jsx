@@ -26,7 +26,7 @@ export default function ConfigureView() {
     <div className="space-y-4">
       {!currentProject && (
         <div className="card p-5 text-[13px] text-ink-muted">
-          Select a specific project above (not “All Projects”) to edit its configuration.
+          No project yet — add one from the header to configure it.
         </div>
       )}
 

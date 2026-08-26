@@ -29,7 +29,7 @@ function Breakdown({ lines }) {
   )
 }
 
-function StatusSection({ state, group, showProjectName, ageUnit }) {
+function StatusSection({ state, group, ageUnit }) {
   const vendorLabel = VENDOR_NAME
   const { project, status: s, rows } = group
   const tint = tintOf(s.color)
@@ -39,7 +39,7 @@ function StatusSection({ state, group, showProjectName, ageUnit }) {
     <div className="status-section">
       <div className="status-heading">
         <span className="title" style={{ color: title }}>
-          {showProjectName ? `${project.lobName} – ${s.label}` : s.label} — {rows.length} Item
+          {s.label} — {rows.length} Item
           {rows.length > 1 ? 's' : ''}
         </span>
       </div>
@@ -101,7 +101,7 @@ function StatusSection({ state, group, showProjectName, ageUnit }) {
 }
 
 export default function BriefingPreview() {
-  const { state, isAllProjects } = useApp()
+  const { state } = useApp()
   // Tiles count everything in scope; the listing below shows only rows whose status
   // is set to appear in the Briefing.
   const rows = briefingRows(state)
@@ -191,7 +191,7 @@ export default function BriefingPreview() {
       </div>
 
       {statusGroups(state, rows).map((group) => (
-        <StatusSection key={group.key} state={state} group={group} showProjectName={isAllProjects} ageUnit={state.display?.overallAgeUnit} />
+        <StatusSection key={group.key} state={state} group={group} ageUnit={state.display?.overallAgeUnit} />
       ))}
 
       {usedFlags(state, rows).map((f) => (
