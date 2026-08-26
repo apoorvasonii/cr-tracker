@@ -64,7 +64,7 @@ function StatusSection({ state, group, showProjectName, ageUnit }) {
               const flags = rowFlags(state, r)
               const overallDisplay = computeOverallAge(r, ageUnit)
               const ageDisplay = computeAgeInState(r)
-              const actionColor = actionColorOf(r.action)
+              const actionColor = actionColorOf(project, r.action)
               const actionLabel = actionLabelOf(project, r.action)
 
               return (

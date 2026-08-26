@@ -4,8 +4,10 @@
  * mutation-style logic stays readable while React still sees a new state object.
  */
 import {
+  ASSIGNEE_PREFIX,
   OVERRIDABLE_FIELDS,
   getProjectById,
+  makeAssignee,
   makeMetric,
   makeNewRecord,
   makeProject,
@@ -106,6 +108,34 @@ export const removeUnusedStatuses = () =>
     proj.statusConfig = proj.statusConfig.filter((s) => used.has(s.key))
     proj.overallMetrics.forEach((m) => { m.statusKeys = m.statusKeys.filter((k) => !dropped.includes(k)) })
     proj.statusMapping = proj.statusMapping.filter((sm) => !dropped.includes(sm.statusKey))
+  })
+
+/* ---------------- Assignees ---------------- */
+export const addAssignee = (label = '') =>
+  withCurrentProject((proj) => {
+    proj.assigneeConfig = proj.assigneeConfig || []
+    proj.assigneeConfig.push(makeAssignee(label, proj.assigneeConfig))
+  })
+
+export const updateAssignee = (id, field, value) =>
+  withCurrentProject((proj) => {
+    const a = (proj.assigneeConfig || []).find((x) => x.id === id)
+    if (a) a[field] = value
+  })
+
+/**
+ * Rows still pointing at a deleted assignee fall back to Unassigned, so nobody is
+ * left holding a responsibility that no longer names anyone.
+ */
+export const removeAssignee = (id) =>
+  withCurrentProject((proj, draft) => {
+    proj.assigneeConfig = (proj.assigneeConfig || []).filter((a) => a.id !== id)
+    draft.crData.forEach((r) => {
+      if (r.projectId !== proj.id || r.action !== ASSIGNEE_PREFIX + id) return
+      r.action = ''
+      r.overrides = r.overrides || {}
+      r.overrides.action = true
+    })
   })
 
 /* ---------------- Overall metrics ---------------- */

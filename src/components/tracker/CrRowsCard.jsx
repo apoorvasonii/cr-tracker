@@ -3,11 +3,11 @@ import { useApp } from '../../state/AppContext'
 import { addRow, removeCustomColumn, setOverallAgeUnit } from '../../state/actions'
 import {
   actionLabelOf,
+  actionOptions,
   allCustomColumnsUnion,
   getProjectById,
   getStatus,
   isManualProject,
-  VENDOR_NAME,
 } from '../../lib/model'
 import FilterDropdown from './FilterDropdown'
 import CrRow from './CrRow'
@@ -89,13 +89,20 @@ export default function CrRowsCard() {
 
   const statuses = statusUniverse(state)
   const statusKeys = statuses.map((s) => s.key)
-  const actionKeys = ['client', 'vendor', 'both', '']
+  // Across "All Projects" the assignees of every project are offered, since the
+  // rows on screen can come from any of them.
+  const actionChoices = isAllProjects
+    ? (() => {
+        const seen = new Map()
+        state.projects.forEach((p) => actionOptions(p).forEach((o) => { if (!seen.has(o.value)) seen.set(o.value, o) }))
+        return [...seen.values()]
+      })()
+    : actionOptions(proj)
+  const actionKeys = actionChoices.map((o) => o.value)
   const effectiveStatus = statusFilter ?? new Set(statusKeys)
   const effectiveAction = actionFilter ?? new Set(actionKeys)
 
   const customCols = isAllProjects ? allCustomColumnsUnion(state.projects) : proj?.customColumns || []
-  const lobLabel = proj ? proj.lobName : 'Client'
-  const vendorLabel = VENDOR_NAME
 
   const visible = useMemo(() => {
     const q = search.toLowerCase().trim()
@@ -159,12 +166,7 @@ export default function CrRowsCard() {
             label="Responsibility"
             open={openPanel === 'action'}
             onToggleOpen={(o) => setOpenPanel(o ? 'action' : null)}
-            options={[
-              { value: 'client', label: lobLabel },
-              { value: 'vendor', label: vendorLabel },
-              { value: 'both', label: `${lobLabel} + ${vendorLabel}` },
-              { value: '', label: 'Unassigned' },
-            ]}
+            options={actionChoices.map((o) => ({ value: o.value, label: o.label, dot: o.color }))}
             selected={effectiveAction}
             onChange={setActionFilter}
           />

@@ -145,6 +145,7 @@ export function makeProject(lobName, displayName, existingProjects = [], source 
     discoveredActionValues: [], // raw values last seen in the mapped Next Action On column
     ignoredStatusValues: [], // discovered values dismissed as "don't ask again"
     flagConfig: defaultFlagConfig(),
+    assigneeConfig: [], // [{ id, label, color }] — extra parties a CR can sit with
     overallMetrics: defaultOverallMetrics(),
     customColumns: [], // [{ id, label, type: 'sheet'|'manual', mappedColumn }]
     lastSyncedAt: null,
@@ -213,16 +214,69 @@ export const UNASSIGNED_ACTION = ''
 /** Every responsibility a row can carry, in the order they're offered. */
 export const ACTIONS = ['client', 'vendor', 'both', '']
 
+/**
+ * Responsibility can also sit with someone the two standard parties don't cover —
+ * a partner, an individual owner, a third-party vendor. Those are configured per
+ * project and stored on the row as 'assignee:<id>', so a value the tracker can no
+ * longer resolve degrades to Unassigned instead of showing a raw id.
+ */
+export const ASSIGNEE_PREFIX = 'assignee:'
+
+export const assigneeIdOf = (action) =>
+  typeof action === 'string' && action.startsWith(ASSIGNEE_PREFIX) ? action.slice(ASSIGNEE_PREFIX.length) : ''
+
+export const getAssignee = (proj, action) => {
+  const id = assigneeIdOf(action)
+  if (!id || !proj) return null
+  return (proj.assigneeConfig || []).find((a) => a.id === id) || null
+}
+
+/** Colours handed to new assignees, cycled so they stay distinguishable. */
+const ASSIGNEE_PALETTE = ['#7a6a3f', '#3f7a72', '#8a3f6a', '#4a5a7a', '#6a7a3f', '#7a4a4a']
+
+export function makeAssignee(label, existing = []) {
+  const trimmed = (label || '').toString().trim() || 'New assignee'
+  return {
+    id: slugifyId(trimmed, existing),
+    label: trimmed,
+    color: ASSIGNEE_PALETTE[existing.length % ASSIGNEE_PALETTE.length],
+  }
+}
+
 export const actionLabelOf = (proj, action) => {
   const lob = proj ? proj.lobName : 'Client'
   if (action === 'vendor') return VENDOR_NAME
   if (action === 'client') return lob
   if (action === 'both') return `${lob} + ${VENDOR_NAME}`
+  const assignee = getAssignee(proj, action)
+  if (assignee) return assignee.label
   return 'Unassigned'
 }
 
-export const actionColorOf = (action) =>
-  action === 'vendor' ? '#4a7fae' : action === 'client' ? '#8a5a3f' : action === 'both' ? '#6a5a9a' : '#8a94a2'
+export const actionColorOf = (proj, action) => {
+  if (action === 'vendor') return '#4a7fae'
+  if (action === 'client') return '#8a5a3f'
+  if (action === 'both') return '#6a5a9a'
+  return getAssignee(proj, action)?.color || '#8a94a2'
+}
+
+/**
+ * Every responsibility offered for a project, in the order they're listed: the
+ * two parties, both of them, each configured assignee, then Unassigned last.
+ */
+export const actionOptions = (proj) => [
+  ...ACTIONS.filter((a) => a !== UNASSIGNED_ACTION).map((value) => ({
+    value,
+    label: actionLabelOf(proj, value),
+    color: actionColorOf(proj, value),
+  })),
+  ...((proj && proj.assigneeConfig) || []).map((a) => ({
+    value: ASSIGNEE_PREFIX + a.id,
+    label: a.label,
+    color: a.color,
+  })),
+  { value: UNASSIGNED_ACTION, label: 'Unassigned', color: actionColorOf(proj, UNASSIGNED_ACTION) },
+]
 
 /** Category a status belongs to. */
 export const UNCOUNTED_CATEGORY = { id: '', label: 'Not counted' }

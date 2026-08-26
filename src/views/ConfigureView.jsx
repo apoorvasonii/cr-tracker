@@ -7,6 +7,7 @@ import MappingTable from '../components/configure/MappingTable'
 import StatusMappingTable from '../components/configure/StatusMappingTable'
 import StatusesTable from '../components/configure/StatusesTable'
 import OverallMetricsTable from '../components/configure/OverallMetricsTable'
+import AssigneesTable from '../components/configure/AssigneesTable'
 import FlagsTable from '../components/configure/FlagsTable'
 import GlobalCategoriesTable from '../components/configure/GlobalCategoriesTable'
 import ConnectSheetModal from '../components/modals/ConnectSheetModal'
@@ -37,6 +38,7 @@ export default function ConfigureView() {
           {!manual && <StatusMappingTable />}
           <StatusesTable />
           <OverallMetricsTable />
+          <AssigneesTable />
           <FlagsTable />
         </>
       )}

@@ -163,7 +163,7 @@ export function buildEmailHtml(state) {
       const ageDisplay = computeAgeInState(r)
       const plannedDisplay = formatPlannedShort(r.planned, p.dateOrder)
       const isDashPlanned = plannedDisplay === '-'
-      const actionColor = actionColorOf(r.action)
+      const actionColor = actionColorOf(p, r.action)
       const actionLabel = actionLabelOf(p, r.action)
 
       html += `<tr>

@@ -8,7 +8,7 @@ import {
   updateRow,
   updateRowSection,
 } from '../../state/actions'
-import { actionLabelOf, categoryOf, getProjectById, getStatus, isManualProject, VENDOR_NAME } from '../../lib/model'
+import { actionOptions, categoryOf, getProjectById, getStatus, isManualProject } from '../../lib/model'
 import { formatPlanned, parseDateValue, toIsoDate } from '../../lib/dates'
 import StatusSelect from './StatusSelect'
 
@@ -111,11 +111,13 @@ export default function CrRow({ row, index, customCols, readOnly, compact }) {
           disabled={readOnly}
           onChange={(e) => update(updateRow(row.recordId, 'action', e.target.value))}
         >
-          {/* Blank is a real state: the sheet didn't say, so nobody has claimed it. */}
-          <option value="">{actionLabelOf(rowProj, '')}</option>
-          <option value="client">{rowProj.lobName}</option>
-          <option value="vendor">{VENDOR_NAME}</option>
-          <option value="both">{actionLabelOf(rowProj, 'both')}</option>
+          {/* The two standard parties, this project's own assignees, then blank —
+              a real state meaning the sheet didn't say and nobody has claimed it. */}
+          {actionOptions(rowProj).map((o) => (
+            <option key={o.value} value={o.value}>
+              {o.label}
+            </option>
+          ))}
         </select>
       </td>
 

@@ -8,6 +8,7 @@ function migrateProject(p) {
   if (!p.discoveredActionValues) p.discoveredActionValues = []
   if (!p.ignoredStatusValues) p.ignoredStatusValues = []
   if (!p.customColumns) p.customColumns = []
+  if (!p.assigneeConfig) p.assigneeConfig = []
   // Saved tab labels are gone: a workbook's own tab names are offered instead.
   delete p.sheetTabConfig
   if (!p.mapping) p.mapping = defaultMapping()

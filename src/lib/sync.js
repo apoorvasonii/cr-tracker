@@ -1,6 +1,7 @@
 import { normalize } from './strings'
 import { formatPlanned, parseDateValue, toIsoDate } from './dates'
 import {
+  ASSIGNEE_PREFIX,
   OVERRIDABLE_FIELDS,
   makeNewRecord,
   makeStatusFromSheetValue,
@@ -27,6 +28,12 @@ export function resolveAction(proj, rawValue) {
   if ((vendor && client) || value === 'both') return 'both'
   if (vendor) return 'vendor'
   if (client) return 'client'
+
+  // Anyone configured under Configure → Responsibility is recognised by name too,
+  // so a sheet that hands a CR to a third party doesn't come back unassigned.
+  const assignee = (proj.assigneeConfig || []).find((a) => names(value, normalize(a.label)))
+  if (assignee) return ASSIGNEE_PREFIX + assignee.id
+
   return null
 }
 
