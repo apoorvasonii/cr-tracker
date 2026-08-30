@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react'
 import { useApp } from '../state/AppContext'
-import { isManualProject } from '../lib/model'
+import { isManualProject, mapSheetStatusToProjectStatus } from '../lib/model'
 import { normalize } from '../lib/strings'
 import ProjectDetailsCard from '../components/configure/ProjectDetailsCard'
 import SheetConnectionCard from '../components/configure/SheetConnectionCard'
@@ -25,11 +25,16 @@ function missingMappedColumns(proj) {
   return [...mapped, ...custom].filter((col) => !headers.includes(col)).length
 }
 
-/** Sheet values seen by the last sync that this project has neither mapped nor dismissed. */
-function unmappedStatusValues(proj) {
+/**
+ * Sheet values the last sync couldn't place at all. A value needs no mapping row
+ * when a status already carries that exact wording — which is every status sync
+ * created — so this asks whether the value resolves, not whether it was mapped
+ * by hand.
+ */
+function unresolvedStatusValues(proj) {
   const ignored = proj.ignoredStatusValues || []
   return (proj.discoveredStatusValues || []).filter(
-    (v) => !(proj.statusMapping || []).some((sm) => normalize(sm.sheetValue) === normalize(v)) && !ignored.includes(v)
+    (v) => !mapSheetStatusToProjectStatus(proj, v) && !ignored.some((i) => normalize(i) === normalize(v))
   ).length
 }
 
@@ -48,7 +53,7 @@ export default function ConfigureView() {
     if (!currentProject) return []
     const p = currentProject
     const missing = missingMappedColumns(p)
-    const unmapped = unmappedStatusValues(p)
+    const unresolved = unresolvedStatusValues(p)
     return [
       { id: 'project', label: 'Project' },
       ...(manual
@@ -69,7 +74,9 @@ export default function ConfigureView() {
         id: 'statuses',
         label: 'Statuses',
         badge: p.statusConfig.length,
-        warning: unmapped ? `${unmapped} sheet value${unmapped === 1 ? '' : 's'} not mapped yet` : '',
+        warning: unresolved
+          ? `${unresolved} sheet value${unresolved === 1 ? '' : 's'} the last sync couldn't place`
+          : '',
       },
       { id: 'display', label: 'Tracker Display' },
     ]
