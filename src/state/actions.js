@@ -14,7 +14,7 @@ import {
   makeStatusFromLabel,
   mapSheetStatusToProjectStatus,
 } from '../lib/model'
-import { sequentialId, slugifyCategory, slugifyStatus, uid } from '../lib/strings'
+import { sequentialId, slugifyStatus, uid } from '../lib/strings'
 import { todayIso } from '../lib/dates'
 
 /** Runs `fn` against the draft's copy of the current project, if one is selected. */
@@ -63,7 +63,7 @@ export const addStatus = () =>
       color: '#5c7a9a',
       showInActionable: true,
       showInBriefing: true,
-      category: 'pipeline',
+      delivered: false,
     })
   })
 
@@ -290,25 +290,6 @@ export const addCustomColumn = (label, type, mappedColumn) =>
 
 export const removeCustomColumn = (id) =>
   withCurrentProject((proj) => { proj.customColumns = proj.customColumns.filter((c) => c.id !== id) })
-
-/* ---------------- Global categories ---------------- */
-export const addGlobalCategory = () => (draft) => {
-  draft.globalCategories.push({ id: slugifyCategory('New Category', draft.globalCategories), label: 'New Category' })
-}
-
-export const updateGlobalCategory = (id, value) => (draft) => {
-  const c = draft.globalCategories.find((x) => x.id === id)
-  if (c) c.label = value
-}
-
-export const removeGlobalCategory = (id) => (draft) => {
-  draft.globalCategories = draft.globalCategories.filter((c) => c.id !== id)
-  draft.projects.forEach((p) =>
-    (p.statusConfig || []).forEach((s) => {
-      if (s.category === id) s.category = draft.globalCategories[0].id
-    })
-  )
-}
 
 /* ---------------- CR rows ---------------- */
 /** Any edit here is, by definition, a manual override. */

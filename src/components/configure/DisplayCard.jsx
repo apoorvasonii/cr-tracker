@@ -14,7 +14,7 @@ export default function DisplayCard() {
 
   return (
     <ConfigCard
-      title="Display"
+      title="Display Preferences"
       sub="Applies to every project, for whoever is looking — these are how ages are presented, not what they measure."
     >
       <div className="flex flex-wrap items-center justify-between gap-3">

@@ -3,19 +3,10 @@ import { normalize, simpleHash, slugifyId, slugifyStatus } from './strings'
 /** Fields a user edit can override, and that a sync will otherwise overwrite. */
 export const OVERRIDABLE_FIELDS = ['name', 'section', 'action', 'planned', 'overall', 'age', 'brdDate', 'movedDate']
 
-export function defaultGlobalCategories() {
-  return [
-    { id: 'live', label: 'Live' },
-    { id: 'pipeline', label: 'Pipeline' },
-    { id: 'hold', label: 'On Hold' },
-    { id: 'none', label: 'Not Counted' },
-  ]
-}
-
 /**
  * No status vocabulary is shipped: statuses are created from the values actually
- * present in the sheet, on sync. Colour, global category, order, whether a status
- * shows in Actionable Points — all configurable afterwards.
+ * present in the sheet, on sync. Colour, order, whether a status counts as
+ * delivered, whether it shows in Actionable Points — all configurable afterwards.
  */
 export function defaultStatusConfig() {
   return []
@@ -27,14 +18,12 @@ export function defaultStatusConfig() {
  * of these, so nothing about the panel is hardcoded. `source` decides what it counts:
  *   'all'      every CR in the project
  *   'statuses' CRs in the chosen statuses
- *   'category' CRs whose status maps to a global category
  *   'manual'   a number typed in Configure (for totals the sheet doesn't hold)
  * The FIRST tile is the base for the other tiles' percentages.
  */
 export const METRIC_SOURCES = [
   { id: 'all', label: 'All CRs' },
   { id: 'statuses', label: 'Chosen statuses' },
-  { id: 'category', label: 'Global category' },
   { id: 'manual', label: 'Typed number' },
 ]
 
@@ -45,7 +34,6 @@ export function makeMetric(overrides = {}) {
     color: '#2b2b2b',
     source: 'statuses',
     statusKeys: [],
-    categoryId: '',
     value: 0,
     showPercent: true,
     ...overrides,
@@ -56,8 +44,10 @@ export function makeMetric(overrides = {}) {
 export function defaultOverallMetrics() {
   return [
     makeMetric({ id: 'metricTotal', label: 'Total CRs', color: '#2b2b2b', source: 'all', showPercent: false }),
-    makeMetric({ id: 'metricLive', label: 'Live', color: '#3f8a52', source: 'category', categoryId: 'live' }),
-    makeMetric({ id: 'metricPipeline', label: 'In Pipeline', color: '#2f5fa8', source: 'category', categoryId: 'pipeline' }),
+    // No statuses exist until a sheet is synced, so these start empty: tick the
+    // statuses each should count once the vocabulary is there.
+    makeMetric({ id: 'metricLive', label: 'Live', color: '#3f8a52', source: 'statuses' }),
+    makeMetric({ id: 'metricPipeline', label: 'In Pipeline', color: '#2f5fa8', source: 'statuses' }),
   ]
 }
 
@@ -73,7 +63,7 @@ export const UNMAPPED_STATUS = {
   label: 'Unmapped',
   color: '#8a94a2',
   showInActionable: false,
-  category: 'none',
+  delivered: false,
 }
 
 /** Builds a status from a raw sheet value, keeping the sheet's own wording as the label. */
@@ -85,7 +75,7 @@ export function makeStatusFromSheetValue(rawValue, existing) {
     color: STATUS_PALETTE[existing.length % STATUS_PALETTE.length],
     showInActionable: true,
     showInBriefing: true,
-    category: 'pipeline',
+    delivered: false,
     fromSheet: true, // created by sync rather than by hand
   }
 }
@@ -99,7 +89,7 @@ export function makeStatusFromLabel(label, existing) {
     color: STATUS_PALETTE[existing.length % STATUS_PALETTE.length],
     showInActionable: true,
     showInBriefing: true,
-    category: 'pipeline',
+    delivered: false,
   }
 }
 
@@ -278,18 +268,6 @@ export const actionOptions = (proj) => [
   { value: UNASSIGNED_ACTION, label: 'Unassigned', color: actionColorOf(proj, UNASSIGNED_ACTION) },
 ]
 
-/** Category a status belongs to. */
-export const UNCOUNTED_CATEGORY = { id: '', label: 'Not counted' }
-
-/**
- * Falls back to an uncounted category, never to globalCategories[0]: that used to
- * be "Live", so a status pointing at a deleted category — or an Unmapped row —
- * quietly inflated the Live count.
- */
-export function categoryOf(globalCategories, status) {
-  return globalCategories.find((c) => c.id === status.category) || UNCOUNTED_CATEGORY
-}
-
 export function getFlag(projects, id, projectId) {
   const proj = getProjectById(projects, projectId)
   return proj ? proj.flagConfig.find((f) => f.id === id) || null : null
@@ -321,10 +299,6 @@ export function metricValue(state, proj, metric) {
       return rows.length
     case 'statuses':
       return rows.filter((r) => (metric.statusKeys || []).includes(r.section)).length
-    case 'category':
-      return rows.filter(
-        (r) => categoryOf(state.globalCategories, getStatus(state.projects, r.section, proj.id)).id === metric.categoryId
-      ).length
     case 'manual':
       return Number(metric.value) || 0
     default:

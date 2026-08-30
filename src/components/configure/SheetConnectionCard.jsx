@@ -19,7 +19,7 @@ export default function SheetConnectionCard({ onOpenConnect }) {
   return (
     <ConfigCard
       title="Google Sheet Connection"
-      sub='Must be shared as "Anyone with the link can view" — or an Apps Script Web App URL for private sheets. The tab is taken from the link, or picked while connecting.'
+      sub='Must be shared as "Anyone with the link can view". The tab is taken from the link, or picked while connecting.'
     >
       <div className="flex flex-wrap gap-2">
         <input

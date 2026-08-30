@@ -1,8 +1,8 @@
 import { Store } from './storage'
-import { defaultGlobalCategories, defaultMapping, makeMetric, makeProject } from '../lib/model'
+import { defaultMapping, makeMetric, makeProject } from '../lib/model'
 
 /** Backfills fields added by later versions onto older persisted projects. */
-function migrateProject(p) {
+export function migrateProject(p) {
   if (!p.statusMapping) p.statusMapping = []
   if (!p.discoveredStatusValues) p.discoveredStatusValues = []
   if (!p.discoveredActionValues) p.discoveredActionValues = []
@@ -69,12 +69,27 @@ function migrateProject(p) {
   delete p.meta
   delete p.metaAuto
 
+  // Global status categories are gone: a tile now names the statuses it counts,
+  // and the only rule that needed a category — "delivered work isn't Overdue" —
+  // is a flag on the status itself. Converted here so tiles keep their numbers.
+  ;(p.overallMetrics || []).forEach((m) => {
+    if (m.source !== 'category') return
+    m.source = 'statuses'
+    m.statusKeys = (p.statusConfig || []).filter((s) => s.category === m.categoryId).map((s) => s.key)
+    delete m.categoryId
+  })
+  ;(p.overallMetrics || []).forEach((m) => delete m.categoryId)
+  ;(p.statusConfig || []).forEach((s) => {
+    if (!('delivered' in s)) s.delivered = s.category === 'live'
+    delete s.category
+  })
+
   if (!p.lastFetchedHeaders) p.lastFetchedHeaders = []
   return p
 }
 
 /** The 'salescode' action value predates the generic 'vendor' action value. */
-function migrateRow(r) {
+export function migrateRow(r) {
   if (r.action === 'salescode') r.action = 'vendor'
   if (r.sourceSnapshot && r.sourceSnapshot.action === 'salescode') r.sourceSnapshot.action = 'vendor'
   return r
@@ -97,10 +112,6 @@ export function loadInitialState() {
       currentProjectId: projects.some((p) => p.id === saved.currentProjectId)
         ? saved.currentProjectId
         : projects[0].id,
-      globalCategories:
-        Array.isArray(saved.globalCategories) && saved.globalCategories.length
-          ? saved.globalCategories
-          : defaultGlobalCategories(),
       crData: (Array.isArray(saved.crData) ? saved.crData : []).map(migrateRow),
       display: { ...defaultDisplay(), ...(saved.display || {}) },
     }
@@ -113,7 +124,6 @@ export function loadInitialState() {
   return {
     projects: [proj],
     currentProjectId: proj.id,
-    globalCategories: defaultGlobalCategories(),
     crData: [],
     display: defaultDisplay(),
   }

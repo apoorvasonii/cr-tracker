@@ -148,6 +148,7 @@ export function applySyncToProject(crData, proj, headers, rows) {
   const statusValuesSeen = new Set()
   const actionValuesSeen = new Set()
   const unrecognizedActions = new Set()
+  let unrecognizedRows = 0
   let blankActions = 0
   const statusesCreated = []
   const fallbackIdCounts = {}
@@ -176,7 +177,10 @@ export function applySyncToProject(crData, proj, headers, rows) {
       const action = resolveAction(proj, actionCell)
       if (m.action) {
         if (!actionCell) blankActions++
-        else if (action === null) unrecognizedActions.add(actionCell)
+        else if (action === null) {
+          unrecognizedRows++
+          unrecognizedActions.add(actionCell)
+        }
       }
 
       // Stored in the app's dd/mm/yyyy form, however the sheet happened to write it.
@@ -256,20 +260,24 @@ export function applySyncToProject(crData, proj, headers, rows) {
   proj.discoveredStatusValues = [...statusValuesSeen]
   proj.discoveredActionValues = [...actionValuesSeen]
 
-  if (unrecognizedActions.size) {
+  // One line, not two: an empty cell and a cell reading "NA" both end up unassigned,
+  // and two warnings ending in the same clause read as a duplicate.
+  const unassignedRows = blankActions + unrecognizedRows
+  if (unassignedRows) {
+    const because = [
+      blankActions ? `${blankActions} with an empty cell` : '',
+      unrecognizedActions.size
+        ? `${unrecognizedRows} naming someone this project doesn't know (${[...unrecognizedActions].join(', ')})`
+        : '',
+    ].filter(Boolean)
     warnings.push(
-      `${unrecognizedActions.size} value${unrecognizedActions.size === 1 ? '' : 's'} in "${m.action}" named neither side, so those rows were left unassigned — set them on the tracker: ${[...unrecognizedActions].join(', ')}.`
-    )
-  }
-  if (blankActions) {
-    warnings.push(
-      `${blankActions} row${blankActions === 1 ? ' has' : 's have'} an empty "${m.action}" cell — those were left unassigned until someone picks a side.`
+      `${unassignedRows} row${unassignedRows === 1 ? '' : 's'} came back unassigned from "${m.action}" — ${because.join(', ')}. Set them on the tracker, or add the missing party under Configure → Responsibility and re-sync.`
     )
   }
 
   if (statusesCreated.length) {
     warnings.push(
-      `Added ${statusesCreated.length} status${statusesCreated.length === 1 ? '' : 'es'} found in the sheet: ${statusesCreated.join(', ')}. Set their colour, order and global category under Configure → Statuses.`
+      `Added ${statusesCreated.length} status${statusesCreated.length === 1 ? '' : 'es'} found in the sheet: ${statusesCreated.join(', ')}. Set their colour and order under Configure → Statuses.`
     )
   }
 

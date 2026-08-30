@@ -8,15 +8,13 @@ import {
   updateRow,
   updateRowSection,
 } from '../../state/actions'
-import { actionOptions, categoryOf, getProjectById, getStatus, isManualProject } from '../../lib/model'
+import { actionOptions, getProjectById, getStatus, isManualProject } from '../../lib/model'
 import { formatPlanned, parseDateValue, toIsoDate } from '../../lib/dates'
 import StatusSelect from './StatusSelect'
 
-/** Past its planned end date and not yet in a "live" category status. */
-function isOverdue(row, statusCategoryId, dateOrder) {
-  // 'live' here is the default global-category id; a project that renames or removes
-  // it simply gets overdue highlighting on those rows too, which is harmless.
-  if (statusCategoryId === 'live') return false
+/** Past its planned end date and not already delivered. */
+function isOverdue(row, delivered, dateOrder) {
+  if (delivered) return false
   const d = parseDateValue(row.planned, dateOrder)
   if (!d) return false
   const today = new Date()
@@ -34,7 +32,7 @@ export default function CrRow({ row, index, customCols }) {
   if (!rowProj) return null
 
   const s = getStatus(state.projects, row.section, row.projectId)
-  const overdue = isOverdue(row, categoryOf(state.globalCategories, s).id, rowProj.dateOrder)
+  const overdue = isOverdue(row, s.delivered, rowProj.dateOrder)
   const manualProject = isManualProject(rowProj)
   const plannedDate = parseDateValue(row.planned, rowProj.dateOrder)
   const plannedIso = plannedDate ? toIsoDate(plannedDate) : ''

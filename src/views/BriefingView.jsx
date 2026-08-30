@@ -59,10 +59,7 @@ export default function BriefingView() {
 
   return (
     <div className="space-y-4">
-      <div className="card flex flex-wrap items-center justify-between gap-3 px-5 py-3">
-        <p className="text-[12.5px] text-ink-muted">
-          Exactly what gets pasted into the email — styled to match the outgoing message, not the app.
-        </p>
+      <div className="card flex flex-wrap items-center justify-end gap-3 px-5 py-3">
         <button className="btn-primary" onClick={copyForEmail}>
           📋 Copy for email
         </button>

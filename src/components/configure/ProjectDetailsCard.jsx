@@ -8,10 +8,7 @@ export default function ProjectDetailsCard() {
   const { currentProject, update } = useApp()
 
   return (
-    <ConfigCard
-      title="Project Details"
-      sub="LOB name labels the client side of the tracker, display name and briefing header title the briefing, and the data source decides whether CRs come from a sheet."
-    >
+    <ConfigCard title="Project Details">
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <label className="block">
           <span className="mb-1.5 block text-[10.5px] font-semibold uppercase tracking-wider text-ink-muted">

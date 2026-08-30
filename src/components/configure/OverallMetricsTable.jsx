@@ -29,7 +29,7 @@ function OrderButtons({ position, isFirst, isLast, onMove }) {
 }
 
 /** What a tile counts depends on its source, so the definition cell changes shape. */
-function DefinitionCell({ metric, proj, categories, update }) {
+function DefinitionCell({ metric, proj, update }) {
   if (metric.source === 'all') {
     return <span className="text-[12px] text-ink-muted">Every CR in this project</span>
   }
@@ -42,23 +42,6 @@ function DefinitionCell({ metric, proj, categories, update }) {
         value={metric.value ?? 0}
         onChange={(e) => update(updateOverallMetric(metric.id, 'value', parseInt(e.target.value, 10) || 0))}
       />
-    )
-  }
-
-  if (metric.source === 'category') {
-    return (
-      <select
-        className="field-select w-full max-w-[220px]"
-        value={metric.categoryId || ''}
-        onChange={(e) => update(updateOverallMetric(metric.id, 'categoryId', e.target.value))}
-      >
-        <option value="">— pick a category —</option>
-        {categories.map((c) => (
-          <option key={c.id} value={c.id}>
-            {c.label}
-          </option>
-        ))}
-      </select>
     )
   }
 
@@ -177,7 +160,7 @@ export default function OverallMetricsTable() {
                 </select>
               </td>
               <td>
-                <DefinitionCell metric={m} proj={proj} categories={state.globalCategories} update={update} />
+                <DefinitionCell metric={m} proj={proj} update={update} />
               </td>
               <td className="text-center">
                 <input

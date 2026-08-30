@@ -30,14 +30,6 @@ export function slugifyStatus(label, existing) {
   return key;
 }
 
-export function slugifyCategory(label, existing) {
-  const base = label.toLowerCase().replace(/[^a-z0-9]+/g, '').slice(0, 14) || 'category';
-  let key = base;
-  let n = 1;
-  while (existing.some((c) => c.id === key)) key = base + n++;
-  return key;
-}
-
 /** Sequential `${prefix}N` id that avoids collisions in `existing`. */
 export function sequentialId(prefix, existing, idKey = 'id') {
   let n = existing.length + 1;

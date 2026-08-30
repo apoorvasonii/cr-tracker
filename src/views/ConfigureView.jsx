@@ -10,7 +10,6 @@ import StatusesTable from '../components/configure/StatusesTable'
 import OverallMetricsTable from '../components/configure/OverallMetricsTable'
 import AssigneesTable from '../components/configure/AssigneesTable'
 import FlagsTable from '../components/configure/FlagsTable'
-import GlobalCategoriesTable from '../components/configure/GlobalCategoriesTable'
 import DisplayCard from '../components/configure/DisplayCard'
 import SectionRail from '../components/configure/SectionRail'
 import ConnectSheetModal from '../components/modals/ConnectSheetModal'
@@ -73,9 +72,9 @@ export default function ConfigureView() {
         warning: unmapped ? `${unmapped} sheet value${unmapped === 1 ? '' : 's'} not mapped yet` : '',
       },
       { id: 'display', label: 'Tracker Display' },
-      { id: 'global', label: 'Global', badge: state.globalCategories.length },
+      { id: 'prefs', label: 'Preferences' },
     ]
-  }, [currentProject, manual, state.globalCategories.length])
+  }, [currentProject, manual])
 
   // A section can disappear (a project switched to tracker-only loses Sheet &
   // Mapping), so the stored choice is always validated against what's on offer.
@@ -122,12 +121,7 @@ export default function ConfigureView() {
               </>
             )}
 
-            {active === 'global' && (
-              <>
-                <DisplayCard />
-                <GlobalCategoriesTable />
-              </>
-            )}
+            {active === 'prefs' && <DisplayCard />}
           </div>
         </div>
       )}

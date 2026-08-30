@@ -38,7 +38,7 @@ export default function StatusesTable() {
   return (
     <ConfigCard
       title="Statuses"
-      sub="Created automatically from the values found in your sheet — colour, order, global category and Actionable Points visibility are yours to set. Order also drives the Briefing's sections, the status dropdowns and the Status filter."
+      sub="Order these the way the Briefing should read — top to bottom is the order its sections appear in, and the same order fills the tracker's status dropdown and filter."
       action={
         <div className="flex gap-2">
           {unusedCount > 0 && (
@@ -62,7 +62,9 @@ export default function StatusesTable() {
               List in Briefing
             </th>
             <th style={{ width: '12%' }}>In Actionable Points</th>
-            <th style={{ width: '17%' }}>Global Category</th>
+            <th style={{ width: '12%' }} title="Delivered work is never flagged Overdue on the tracker">
+              Delivered
+            </th>
             <th style={{ width: '15%' }}>Usage</th>
             <th style={{ width: '10%' }} />
           </tr>
@@ -121,18 +123,14 @@ export default function StatusesTable() {
                     onChange={(e) => update(updateStatus(s.key, 'showInActionable', e.target.checked))}
                   />
                 </td>
-                <td>
-                  <select
-                    className="field-select w-full"
-                    value={s.category}
-                    onChange={(e) => update(updateStatus(s.key, 'category', e.target.value))}
-                  >
-                    {state.globalCategories.map((c) => (
-                      <option key={c.id} value={c.id}>
-                        {c.label}
-                      </option>
-                    ))}
-                  </select>
+                <td className="text-center">
+                  <input
+                    type="checkbox"
+                    className="h-4 w-4 accent-brand-600"
+                    title="Work that has landed — these CRs are never flagged Overdue, however old their planned date is"
+                    checked={!!s.delivered}
+                    onChange={(e) => update(updateStatus(s.key, 'delivered', e.target.checked))}
+                  />
                 </td>
                 <td className="text-[12px] text-ink-muted">
                   {count} CR{count === 1 ? '' : 's'}

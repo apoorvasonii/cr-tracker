@@ -1,4 +1,5 @@
 import { TABLE, supabase } from '../lib/supabase'
+import { migrateProject, migrateRow } from './initialState'
 
 /**
  * Shared persistence, entity by entity.
@@ -18,7 +19,6 @@ export function stateToEntities(state) {
   const entities = new Map()
   state.projects.forEach((p) => entities.set(`project:${p.id}`, { kind: 'project', id: p.id, data: p }))
   state.crData.forEach((r) => entities.set(`row:${r.recordId}`, { kind: 'row', id: r.recordId, data: r }))
-  entities.set('global:categories', { kind: 'global', id: 'categories', data: { value: state.globalCategories } })
   entities.set('global:display', { kind: 'global', id: 'display', data: { value: state.display } })
   return entities
 }
@@ -27,13 +27,13 @@ export function stateToEntities(state) {
 export function entitiesToState(rows, fallback) {
   const projects = []
   const crData = []
-  let globalCategories = null
   let display = null
 
   rows.forEach((row) => {
-    if (row.kind === 'project') projects.push(row.data)
-    else if (row.kind === 'row') crData.push(row.data)
-    else if (row.kind === 'global' && row.id === 'categories') globalCategories = row.data?.value
+    // Shared workspaces hold whatever version last wrote them, so entities arriving
+    // from the server go through the same migrations as locally persisted ones.
+    if (row.kind === 'project') projects.push(migrateProject(row.data))
+    else if (row.kind === 'row') crData.push(migrateRow(row.data))
     else if (row.kind === 'global' && row.id === 'display') display = row.data?.value
   })
 
@@ -42,7 +42,6 @@ export function entitiesToState(rows, fallback) {
   return {
     projects,
     crData,
-    globalCategories: globalCategories?.length ? globalCategories : fallback.globalCategories,
     display: display || fallback.display,
     // Keep viewing whatever this person had selected, if it still exists.
     currentProjectId: projects.some((p) => p.id === fallback.currentProjectId)
@@ -136,9 +135,10 @@ export function applyRemoteChange(draft, change) {
       }
       return
     }
+    const migrated = migrateProject(data)
     const i = draft.projects.findIndex((p) => p.id === id)
-    if (i >= 0) draft.projects[i] = data
-    else draft.projects.push(data)
+    if (i >= 0) draft.projects[i] = migrated
+    else draft.projects.push(migrated)
     return
   }
 
@@ -147,14 +147,14 @@ export function applyRemoteChange(draft, change) {
       draft.crData = draft.crData.filter((r) => r.recordId !== id)
       return
     }
+    const migrated = migrateRow(data)
     const i = draft.crData.findIndex((r) => r.recordId === id)
-    if (i >= 0) draft.crData[i] = data
-    else draft.crData.push(data)
+    if (i >= 0) draft.crData[i] = migrated
+    else draft.crData.push(migrated)
     return
   }
 
   if (kind === 'global' && !deleted) {
-    if (id === 'categories') draft.globalCategories = data.value
     if (id === 'display') draft.display = data.value
   }
 }
