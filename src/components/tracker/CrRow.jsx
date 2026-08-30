@@ -28,7 +28,7 @@ function isOverdue(row, statusCategoryId, dateOrder) {
 const NEW_STATUS = '__new_status__'
 
 /** `customCols` is the project's custom column set, in the order it configures them. */
-export default function CrRow({ row, index, customCols, compact }) {
+export default function CrRow({ row, index, customCols }) {
   const { state, update, showToast } = useApp()
   const rowProj = getProjectById(state.projects, row.projectId)
   if (!rowProj) return null
@@ -40,7 +40,7 @@ export default function CrRow({ row, index, customCols, compact }) {
   const plannedIso = plannedDate ? toIsoDate(plannedDate) : ''
   const hasOverride = row.overrides && Object.values(row.overrides).some(Boolean)
 
-  const cell = `px-3 align-top ${compact ? 'py-1.5' : 'py-2.5'}`
+  const cell = 'px-3 py-2.5 align-top'
 
   const reset = () => {
     update(resetRowOverrides(row.recordId))

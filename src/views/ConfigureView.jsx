@@ -11,6 +11,7 @@ import OverallMetricsTable from '../components/configure/OverallMetricsTable'
 import AssigneesTable from '../components/configure/AssigneesTable'
 import FlagsTable from '../components/configure/FlagsTable'
 import GlobalCategoriesTable from '../components/configure/GlobalCategoriesTable'
+import DisplayCard from '../components/configure/DisplayCard'
 import SectionRail from '../components/configure/SectionRail'
 import ConnectSheetModal from '../components/modals/ConnectSheetModal'
 import MappingModal from '../components/modals/MappingModal'
@@ -121,7 +122,12 @@ export default function ConfigureView() {
               </>
             )}
 
-            {active === 'global' && <GlobalCategoriesTable />}
+            {active === 'global' && (
+              <>
+                <DisplayCard />
+                <GlobalCategoriesTable />
+              </>
+            )}
           </div>
         </div>
       )}

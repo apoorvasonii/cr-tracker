@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useApp } from '../../state/AppContext'
-import { addRow, removeCustomColumn, setOverallAgeUnit } from '../../state/actions'
+import { addRow, removeCustomColumn } from '../../state/actions'
 import {
   actionLabelOf,
   actionOptions,
@@ -11,30 +11,6 @@ import {
 import FilterDropdown from './FilterDropdown'
 import CrRow from './CrRow'
 import AddColumnModal from '../modals/AddColumnModal'
-
-/** Segmented control for the Overall Age unit. The tracker no longer shows the age
-    columns, so this shapes the Briefing and the email. */
-function AgeUnitToggle({ unit, onChange }) {
-  return (
-    <div className="flex h-10 items-center gap-0.5 rounded-lg border border-line bg-slate-50 p-0.5" title="Overall Age unit used in the Briefing and the email">
-      <span className="px-2 text-[11px] font-semibold uppercase tracking-wider text-ink-muted">Age</span>
-      {[
-        { id: 'weeks', label: 'Weeks' },
-        { id: 'days', label: 'Days' },
-      ].map((o) => (
-        <button
-          key={o.id}
-          onClick={() => onChange(o.id)}
-          className={`h-8 rounded-md px-2.5 text-[12px] font-semibold transition-colors ${
-            unit === o.id ? 'bg-white text-ink shadow-card' : 'text-ink-muted hover:text-ink-soft'
-          }`}
-        >
-          {o.label}
-        </button>
-      ))}
-    </div>
-  )
-}
 
 function HeaderCell({ label, width, onRemove, align }) {
   return (
@@ -63,7 +39,6 @@ export default function CrRowsCard() {
   const [openPanel, setOpenPanel] = useState(null)
   const [statusFilter, setStatusFilter] = useState(null) // null = all
   const [actionFilter, setActionFilter] = useState(null)
-  const [compact, setCompact] = useState(false)
   const [addColumnOpen, setAddColumnOpen] = useState(false)
 
   // Filters hold status keys, and keys are per project — carrying a filter across a
@@ -168,13 +143,6 @@ export default function CrRowsCard() {
                 ? `${scopedTotal} row${scopedTotal === 1 ? '' : 's'}`
                 : `${visible.length} of ${scopedTotal} rows`}
             </span>
-            <AgeUnitToggle
-              unit={state.display?.overallAgeUnit ?? 'weeks'}
-              onChange={(u) => update(setOverallAgeUnit(u))}
-            />
-            <button className="btn text-ink-soft" onClick={() => setCompact((c) => !c)}>
-              {compact ? 'Comfortable rows' : 'Compact rows'}
-            </button>
             <button className="btn" onClick={() => setAddColumnOpen(true)}>
               + Column
             </button>
@@ -218,7 +186,6 @@ export default function CrRowsCard() {
                   index={i + 1}
                   row={row}
                   customCols={customCols}
-                  compact={compact}
                 />
               ))}
             </tbody>
