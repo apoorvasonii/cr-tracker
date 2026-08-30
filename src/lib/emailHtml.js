@@ -56,7 +56,6 @@ export function buildEmailHtml(state) {
   const rows = briefingRows(state)
   const { displayTitle, headerLabel, subheaderLabel, lobLabel, vendorLabel } = briefingTitles(state)
   const F = 'font-family:Arial,Helvetica,sans-serif;'
-  const ageUnit = state.display?.overallAgeUnit
 
   const tiles = scopedTiles(state)
   const base = percentBase(tiles)
@@ -156,7 +155,7 @@ export function buildEmailHtml(state) {
         .map((f) => `<span style="color:${escapeHtml(f.color)};font-weight:800;">${escapeHtml(f.symbol)}</span>`)
         .join(' ')
       const border = idx < groupRows.length - 1 ? `border-bottom:1px solid ${LINE};` : ''
-      const overallDisplay = computeOverallAge(r, ageUnit)
+      const overallDisplay = computeOverallAge(r, p.overallAgeUnit)
       const ageDisplay = computeAgeInState(r)
       const plannedDisplay = formatPlannedShort(r.planned, p.dateOrder)
       const isDashPlanned = plannedDisplay === '-'

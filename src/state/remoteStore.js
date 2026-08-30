@@ -19,7 +19,6 @@ export function stateToEntities(state) {
   const entities = new Map()
   state.projects.forEach((p) => entities.set(`project:${p.id}`, { kind: 'project', id: p.id, data: p }))
   state.crData.forEach((r) => entities.set(`row:${r.recordId}`, { kind: 'row', id: r.recordId, data: r }))
-  entities.set('global:display', { kind: 'global', id: 'display', data: { value: state.display } })
   return entities
 }
 
@@ -27,14 +26,12 @@ export function stateToEntities(state) {
 export function entitiesToState(rows, fallback) {
   const projects = []
   const crData = []
-  let display = null
 
   rows.forEach((row) => {
     // Shared workspaces hold whatever version last wrote them, so entities arriving
     // from the server go through the same migrations as locally persisted ones.
     if (row.kind === 'project') projects.push(migrateProject(row.data))
     else if (row.kind === 'row') crData.push(migrateRow(row.data))
-    else if (row.kind === 'global' && row.id === 'display') display = row.data?.value
   })
 
   if (!projects.length) return null // empty workspace: let the caller seed it
@@ -42,7 +39,6 @@ export function entitiesToState(rows, fallback) {
   return {
     projects,
     crData,
-    display: display || fallback.display,
     // Keep viewing whatever this person had selected, if it still exists.
     currentProjectId: projects.some((p) => p.id === fallback.currentProjectId)
       ? fallback.currentProjectId
@@ -154,7 +150,4 @@ export function applyRemoteChange(draft, change) {
     return
   }
 
-  if (kind === 'global' && !deleted) {
-    if (id === 'display') draft.display = data.value
-  }
 }

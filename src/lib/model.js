@@ -126,6 +126,7 @@ export function makeProject(lobName, displayName, existingProjects = [], source 
     briefingSubheader: '',
     source, // 'sheet' = synced from Google Sheets, 'manual' = rows entered in the tracker
     dateOrder: 'dmy', // how to read ambiguous numeric sheet dates: 'dmy' | 'mdy'
+    overallAgeUnit: 'weeks', // how this project's Briefing expresses Overall Age: 'weeks' | 'days'
     googleSheetUrl: '',
     sheetTabValue: '',
     mapping: defaultMapping(),

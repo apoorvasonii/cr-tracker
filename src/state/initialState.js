@@ -2,7 +2,7 @@ import { Store } from './storage'
 import { defaultMapping, makeMetric, makeProject } from '../lib/model'
 
 /** Backfills fields added by later versions onto older persisted projects. */
-export function migrateProject(p) {
+export function migrateProject(p, legacyAgeUnit) {
   if (!p.statusMapping) p.statusMapping = []
   if (!p.discoveredStatusValues) p.discoveredStatusValues = []
   if (!p.discoveredActionValues) p.discoveredActionValues = []
@@ -84,6 +84,10 @@ export function migrateProject(p) {
     delete s.category
   })
 
+  // The Overall Age unit used to be one app-wide setting shared by everyone; each
+  // project now carries its own, seeded from whatever that setting last said.
+  if (!p.overallAgeUnit) p.overallAgeUnit = legacyAgeUnit || 'weeks'
+
   if (!p.lastFetchedHeaders) p.lastFetchedHeaders = []
   return p
 }
@@ -95,17 +99,12 @@ export function migrateRow(r) {
   return r
 }
 
-/** App-wide display preferences (not per project). */
-function defaultDisplay() {
-  return { overallAgeUnit: 'weeks' } // 'weeks' | 'days'
-}
-
 /** Persisted state if there is any, otherwise the seeded first-run project. */
 export function loadInitialState() {
   const saved = Store.load()
 
   if (saved && Array.isArray(saved.projects) && saved.projects.length) {
-    const projects = saved.projects.map(migrateProject)
+    const projects = saved.projects.map((p) => migrateProject(p, saved.display?.overallAgeUnit))
     return {
       projects,
       // 'ALL' was the old cross-project view; the app now always scopes to one project.
@@ -113,7 +112,6 @@ export function loadInitialState() {
         ? saved.currentProjectId
         : projects[0].id,
       crData: (Array.isArray(saved.crData) ? saved.crData : []).map(migrateRow),
-      display: { ...defaultDisplay(), ...(saved.display || {}) },
     }
   }
 
@@ -125,6 +123,5 @@ export function loadInitialState() {
     projects: [proj],
     currentProjectId: proj.id,
     crData: [],
-    display: defaultDisplay(),
   }
 }

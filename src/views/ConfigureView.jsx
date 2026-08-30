@@ -72,7 +72,6 @@ export default function ConfigureView() {
         warning: unmapped ? `${unmapped} sheet value${unmapped === 1 ? '' : 's'} not mapped yet` : '',
       },
       { id: 'display', label: 'Tracker Display' },
-      { id: 'prefs', label: 'Preferences' },
     ]
   }, [currentProject, manual])
 
@@ -115,13 +114,12 @@ export default function ConfigureView() {
 
             {active === 'display' && (
               <>
+                <DisplayCard />
                 <OverallMetricsTable />
                 <AssigneesTable />
                 <FlagsTable />
               </>
             )}
-
-            {active === 'prefs' && <DisplayCard />}
           </div>
         </div>
       )}

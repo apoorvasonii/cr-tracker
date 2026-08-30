@@ -162,7 +162,7 @@ export const BUSINESS_DAYS_PER_WEEK = 5
 export const formatAgeDays = (days) => days + 'd'
 export const formatAgeWeeks = (days) => Math.round(days / BUSINESS_DAYS_PER_WEEK) + 'w'
 
-/** `unit` is 'weeks' | 'days' — the app-wide Overall Age display preference. */
+/** `unit` is 'weeks' | 'days' — the project's Overall Age display preference. */
 export const formatBusinessAge = (days, unit) => (unit === 'days' ? formatAgeDays(days) : formatAgeWeeks(days))
 
 export function relativeSyncTime(ts) {

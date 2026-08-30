@@ -29,9 +29,10 @@ function Breakdown({ lines }) {
   )
 }
 
-function StatusSection({ state, group, ageUnit }) {
+function StatusSection({ state, group }) {
   const vendorLabel = VENDOR_NAME
   const { project, status: s, rows } = group
+  const ageUnit = project.overallAgeUnit
   const tint = tintOf(s.color)
   const title = titleOf(s.color)
 
@@ -191,7 +192,7 @@ export default function BriefingPreview() {
       </div>
 
       {statusGroups(state, rows).map((group) => (
-        <StatusSection key={group.key} state={state} group={group} ageUnit={state.display?.overallAgeUnit} />
+        <StatusSection key={group.key} state={state} group={group} />
       ))}
 
       {usedFlags(state, rows).map((f) => (

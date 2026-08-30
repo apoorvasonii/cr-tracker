@@ -7,22 +7,22 @@ const UNITS = [
   { id: 'days', label: 'Days' },
 ]
 
-/** App-wide display preferences — not per project, which is why this sits under Global. */
+/** Per-project presentation choices — what the Briefing prints, not what it measures. */
 export default function DisplayCard() {
-  const { state, update } = useApp()
-  const unit = state.display?.overallAgeUnit ?? 'weeks'
+  const { currentProject, update } = useApp()
+  const unit = currentProject.overallAgeUnit ?? 'weeks'
 
   return (
     <ConfigCard
-      title="Display Preferences"
-      sub="Applies to every project, for whoever is looking — these are how ages are presented, not what they measure."
+      title="Briefing Display"
+      sub="How this project's Briefing presents its numbers."
     >
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
           <div className="text-[13px] font-semibold text-ink">Overall Age unit</div>
           <p className="card-sub max-w-2xl">
-            How the Briefing and the email express Overall Age. Ages are counted in business days either way; weeks
-            simply divides by five and rounds.
+            How this project's Briefing and email express Overall Age. Ages are counted in business days either way;
+            weeks simply divides by five and rounds.
           </p>
         </div>
         <div className="flex h-10 items-center gap-0.5 rounded-lg border border-line bg-slate-50 p-0.5">
