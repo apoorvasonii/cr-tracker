@@ -16,8 +16,9 @@ function HeaderCell({ label, width, onRemove, align }) {
   return (
     <th
       style={{ width }}
-      className={`group whitespace-nowrap border-b border-line px-3 py-3 text-[10.5px] font-semibold uppercase
-                  tracking-wider text-ink-muted ${align === 'center' ? 'text-center' : 'text-left'}`}
+      className={`group sticky top-0 z-10 whitespace-nowrap border-b border-line bg-slate-50 px-3 py-3
+                  text-[10.5px] font-semibold uppercase tracking-wider text-ink-muted
+                  ${align === 'center' ? 'text-center' : 'text-left'}`}
     >
       {label}
       {onRemove && (
@@ -92,10 +93,13 @@ export default function CrRowsCard() {
 
   return (
     <>
-      <div className="card overflow-hidden">
+      <div className="card">
 
-        {/* Toolbar */}
-        <div className="flex flex-wrap items-center gap-2 border-b border-line px-4 py-3">
+        {/* Toolbar — sticky, so filters and the search box stay reachable mid-table. */}
+        <div
+          className="sticky z-20 flex flex-wrap items-center gap-2 rounded-t-xl border-b border-line bg-white px-4 py-3"
+          style={{ top: 'var(--app-header-h, 116px)' }}
+        >
           <div className="relative min-w-[240px] flex-1">
             <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-ink-muted">⌕</span>
             <input
@@ -152,10 +156,15 @@ export default function CrRowsCard() {
           </div>
         </div>
 
-        {/* Table */}
-        <div className="overflow-x-auto">
+        {/* The rows scroll inside the card rather than the page: that's what lets the
+            toolbar and the column headers stay put, since a sticky element can only
+            stick within its own scroll container. */}
+        <div
+          className="overflow-auto rounded-b-xl"
+          style={{ maxHeight: 'calc(100vh - var(--app-header-h, 116px) - 8.5rem)' }}
+        >
           <table className="w-full border-collapse">
-            <thead className="bg-slate-50/60">
+            <thead>
               <tr>
                 <HeaderCell label="#" width="52px" />
                 <HeaderCell label="Feature" width="22%" />

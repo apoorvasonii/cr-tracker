@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import TopBar from './components/layout/TopBar'
 import Tabs from './components/layout/Tabs'
 import SyncAllResults from './components/layout/SyncAllResults'
@@ -10,10 +10,24 @@ import BriefingView from './views/BriefingView'
 export default function App() {
   const [tab, setTab] = useState('entry')
   const [syncAllResults, setSyncAllResults] = useState(null)
+  const headerRef = useRef(null)
+
+  // The header wraps at narrow widths, so anything sizing itself against it reads
+  // the measured height instead of guessing.
+  useEffect(() => {
+    const el = headerRef.current
+    if (!el) return
+    const publish = () =>
+      document.documentElement.style.setProperty('--app-header-h', `${el.offsetHeight}px`)
+    publish()
+    const observer = new ResizeObserver(publish)
+    observer.observe(el)
+    return () => observer.disconnect()
+  }, [])
 
   return (
     <div className="min-h-full">
-      <header className="sticky top-0 z-40 border-b border-line bg-white">
+      <header ref={headerRef} className="sticky top-0 z-40 border-b border-line bg-white">
         <TopBar onGoToConfig={() => setTab('config')} onSyncAllResults={setSyncAllResults} />
         <Tabs tab={tab} onChange={setTab} />
       </header>
