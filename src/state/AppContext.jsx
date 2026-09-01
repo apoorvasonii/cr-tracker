@@ -182,16 +182,6 @@ export function AppProvider({ children }) {
     [update]
   )
 
-  const syncAllProjects = useCallback(
-    () =>
-      Promise.all(
-        stateRef.current.projects
-          .filter((p) => !isManualProject(p))
-          .map((p) => syncProject(p.id).then((result) => ({ project: p, result })))
-      ),
-    [syncProject]
-  )
-
   /** Applies rows already fetched by the Connect wizard, with no second request. */
   const applyFetchedRows = useCallback(
     (projectId, headers, rows) =>
@@ -222,10 +212,9 @@ export function AppProvider({ children }) {
       showToast,
       toast,
       syncProject,
-      syncAllProjects,
       applyFetchedRows,
     }),
-    [state, currentProject, remoteStatus, update, showToast, toast, syncProject, syncAllProjects, applyFetchedRows]
+    [state, currentProject, remoteStatus, update, showToast, toast, syncProject, applyFetchedRows]
   )
 
   return <AppContext.Provider value={value}>{children}</AppContext.Provider>

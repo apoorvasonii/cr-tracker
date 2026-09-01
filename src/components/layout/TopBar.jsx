@@ -7,9 +7,7 @@ import AddProjectModal from '../modals/AddProjectModal'
 import { removedText } from '../../lib/sync'
 
 function SyncLine({ project }) {
-  if (!project) {
-    return <div className="hidden text-[12px] leading-tight text-ink-muted lg:block">All projects · read-only view</div>
-  }
+  if (!project) return null
 
   if (isManualProject(project)) {
     return (
@@ -65,8 +63,8 @@ function StorageBadge({ status }) {
   )
 }
 
-export default function TopBar({ onGoToConfig, onSyncAllResults }) {
-  const { state, currentProject, remoteStatus, update, showToast, syncProject, syncAllProjects } = useApp()
+export default function TopBar({ onGoToConfig }) {
+  const { state, currentProject, remoteStatus, update, showToast, syncProject } = useApp()
   const [addOpen, setAddOpen] = useState(false)
 
   const title = currentProject ? currentProject.displayName : 'No project'
@@ -87,11 +85,6 @@ export default function TopBar({ onGoToConfig, onSyncAllResults }) {
         showToast(`Sync failed for ${name}: ${result.errors[0] || 'unknown error'}`, true)
       }
     })
-  }
-
-  const syncAll = () => {
-    onSyncAllResults('pending')
-    syncAllProjects().then(onSyncAllResults)
   }
 
   const removeProject = () => {
@@ -144,13 +137,10 @@ export default function TopBar({ onGoToConfig, onSyncAllResults }) {
 
         <div className="ml-auto flex items-center gap-2">
           {!isManualProject(currentProject) && (
-            <button className="btn" onClick={syncCurrent}>
-              <span className="text-ink-muted">↻</span> Sync
+            <button className="btn-primary" onClick={syncCurrent}>
+              ↻ Sync
             </button>
           )}
-          <button className="btn-primary" onClick={syncAll}>
-            ↻ Sync All
-          </button>
         </div>
       </div>
 

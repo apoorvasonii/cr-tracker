@@ -1,3 +1,5 @@
+import { isNonWorkingDay } from './holidays'
+
 const MONTHS = ['jan', 'feb', 'mar', 'apr', 'may', 'jun', 'jul', 'aug', 'sep', 'oct', 'nov', 'dec']
 
 const monthIndex = (name) => MONTHS.indexOf(name.slice(0, 3).toLowerCase())
@@ -94,7 +96,7 @@ export function parseDateValue(v, order = 'dmy') {
   return null
 }
 
-/** Business days between `date` and today, weekends excluded, end-exclusive. */
+/** Business days between `date` and today, weekends and holidays excluded, end-exclusive. */
 export function businessDaysFromDate(date) {
   const today = new Date()
   today.setHours(0, 0, 0, 0)
@@ -106,8 +108,7 @@ export function businessDaysFromDate(date) {
   const cur = new Date(start)
   cur.setDate(cur.getDate() + 1)
   while (cur < today) {
-    const dow = cur.getDay()
-    if (dow !== 0 && dow !== 6) days++
+    if (!isNonWorkingDay(cur)) days++
     cur.setDate(cur.getDate() + 1)
   }
   return days
@@ -156,7 +157,7 @@ export function formatPlannedShort(value, order = 'dmy') {
   return d.getFullYear() === new Date().getFullYear() ? short : `${short} ${d.getFullYear()}`
 }
 
-/** A working week is five business days: Saturdays and Sundays don't count. */
+/** A working week is still five days: holidays shorten a week, they don't redefine it. */
 export const BUSINESS_DAYS_PER_WEEK = 5
 
 export const formatAgeDays = (days) => days + 'd'
@@ -179,7 +180,7 @@ export function relativeSyncTime(ts) {
    otherwise whatever text came from the sheet / was typed in. */
 export function computeOverallAge(row, unit = 'weeks') {
   // brdDate/movedDate are always stored ISO, so no order is needed here.
-  // Weekends are not working time, so they're excluded from both age columns.
+  // Weekends and holidays are not working time, so both age columns exclude them.
   const d = parseDateValue(row.brdDate)
   if (d) return formatBusinessAge(businessDaysFromDate(d), unit)
   return row.overall || '-'
