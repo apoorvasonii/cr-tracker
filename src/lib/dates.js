@@ -114,6 +114,16 @@ export function businessDaysFromDate(date) {
   return days
 }
 
+/** Calendar days between `date` and today — every day counts, weekend or holiday. */
+export function calendarDaysFromDate(date) {
+  const today = new Date()
+  today.setHours(0, 0, 0, 0)
+  const start = new Date(date)
+  start.setHours(0, 0, 0, 0)
+  if (start >= today) return 0
+  return Math.round((today - start) / 86400000)
+}
+
 export function toIsoDate(date) {
   const y = date.getFullYear()
   const mo = String(date.getMonth() + 1).padStart(2, '0')
@@ -157,14 +167,13 @@ export function formatPlannedShort(value, order = 'dmy') {
   return d.getFullYear() === new Date().getFullYear() ? short : `${short} ${d.getFullYear()}`
 }
 
-/** A working week is still five days: holidays shorten a week, they don't redefine it. */
-export const BUSINESS_DAYS_PER_WEEK = 5
+/** A week is seven calendar days — the ordinary sense of "a week has passed". */
+export const DAYS_PER_WEEK = 7
 
 export const formatAgeDays = (days) => days + 'd'
-export const formatAgeWeeks = (days) => Math.round(days / BUSINESS_DAYS_PER_WEEK) + 'w'
 
-/** `unit` is 'weeks' | 'days' — the project's Overall Age display preference. */
-export const formatBusinessAge = (days, unit) => (unit === 'days' ? formatAgeDays(days) : formatAgeWeeks(days))
+/** Whole weeks only: six days is still 0w, thirteen is 1w. */
+export const formatAgeWeeks = (calendarDays) => Math.floor(calendarDays / DAYS_PER_WEEK) + 'w'
 
 export function relativeSyncTime(ts) {
   if (!ts) return 'Never synced'
@@ -180,10 +189,11 @@ export function relativeSyncTime(ts) {
    otherwise whatever text came from the sheet / was typed in. */
 export function computeOverallAge(row, unit = 'weeks') {
   // brdDate/movedDate are always stored ISO, so no order is needed here.
-  // Weekends and holidays are not working time, so both age columns exclude them.
   const d = parseDateValue(row.brdDate)
-  if (d) return formatBusinessAge(businessDaysFromDate(d), unit)
-  return row.overall || '-'
+  if (!d) return row.overall || '-'
+  // Weeks are counted the way people say them — seven days since the BRD date is
+  // one week — while days report working time, with weekends and holidays out.
+  return unit === 'days' ? formatAgeDays(businessDaysFromDate(d)) : formatAgeWeeks(calendarDaysFromDate(d))
 }
 
 export function computeAgeInState(row) {
