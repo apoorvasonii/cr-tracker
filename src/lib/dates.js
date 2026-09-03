@@ -4,6 +4,9 @@ const MONTHS = ['jan', 'feb', 'mar', 'apr', 'may', 'jun', 'jul', 'aug', 'sep', '
 
 const monthIndex = (name) => MONTHS.indexOf(name.slice(0, 3).toLowerCase())
 
+/** Two-digit years are this century: sheets write 26 for 2026, never 1926. */
+const fullYear = (y) => (y < 100 ? y + 2000 : y)
+
 const atMidnight = (y, m, d) => {
   const date = new Date(y, m, d)
   date.setHours(0, 0, 0, 0)
@@ -12,18 +15,18 @@ const atMidnight = (y, m, d) => {
 }
 
 /**
- * A date with no year written down is a past date in this app (BRD sign-offs, last
- * actions), so default to this year and step back a year if that lands in the future.
+ * A date with no year written down resolves to whichever year puts it closest to
+ * today. Guessing "always in the past" was wrong for Planned End Date — in early
+ * September, a sheet saying "26-Aug" for work planned this year became last year.
  */
 function resolveMissingYear(month, day) {
-  const now = new Date()
-  const candidate = atMidnight(now.getFullYear(), month, day)
-  if (!candidate) return null
-  const tomorrow = new Date()
-  tomorrow.setHours(0, 0, 0, 0)
-  tomorrow.setDate(tomorrow.getDate() + 1)
-  if (candidate <= tomorrow) return candidate
-  return atMidnight(now.getFullYear() - 1, month, day)
+  const today = new Date()
+  today.setHours(0, 0, 0, 0)
+  const year = today.getFullYear()
+  return [year, year - 1, year + 1]
+    .map((y) => atMidnight(y, month, day))
+    .filter(Boolean)
+    .sort((a, b) => Math.abs(a - today) - Math.abs(b - today))[0] || null
 }
 
 /**
@@ -49,8 +52,7 @@ export function parseDateValue(v, order = 'dmy') {
   // Numeric: 31/07/2026, 31-7-26, 31.07.2026
   m = s.match(/^(\d{1,2})[/.-](\d{1,2})[/.-](\d{2,4})$/)
   if (m) {
-    let [a, b, y] = [+m[1], +m[2], +m[3]]
-    if (y < 100) y += 2000
+    let [a, b, y] = [+m[1], +m[2], fullYear(+m[3])]
     // Whichever number can't be a month settles it; otherwise the project's
     // configured order decides (31/07 is unambiguous, 1/2 is not).
     let day, month
@@ -75,15 +77,15 @@ export function parseDateValue(v, order = 'dmy') {
   }
 
   // Spelled-out month with a year: "2 July 2026", "Jul 2, 2026"
-  m = s.match(/^(\d{1,2})(?:st|nd|rd|th)?[\s-]+([a-z]{3,})\.?[\s,]+(\d{4})$/i)
+  m = s.match(/^(\d{1,2})(?:st|nd|rd|th)?[\s-]+([a-z]{3,})\.?[\s,-]+(\d{2,4})$/i)
   if (m) {
     const month = monthIndex(m[2])
-    return month < 0 ? null : atMidnight(+m[3], month, +m[1])
+    return month < 0 ? null : atMidnight(fullYear(+m[3]), month, +m[1])
   }
-  m = s.match(/^([a-z]{3,})\.?[\s-]+(\d{1,2})(?:st|nd|rd|th)?[\s,]+(\d{4})$/i)
+  m = s.match(/^([a-z]{3,})\.?[\s-]+(\d{1,2})(?:st|nd|rd|th)?[\s,-]+(\d{2,4})$/i)
   if (m) {
     const month = monthIndex(m[1])
-    return month < 0 ? null : atMidnight(+m[3], month, +m[2])
+    return month < 0 ? null : atMidnight(fullYear(+m[3]), month, +m[2])
   }
 
   // Spreadsheet serial number (days since 1899-12-30), in case a cell arrives raw.

@@ -213,6 +213,28 @@ export function applySyncToProject(crData, proj, headers, rows) {
     })
     .filter(Boolean)
 
+  const claimed = new Set()
+
+  /**
+   * A fallback id is a hash of the Feature, Status and Planned End Date *as the
+   * sheet wrote them*, so anything that changes that text — a reformatted date
+   * column, or this app switching to typed values — mints a "new" row and orphans
+   * the old one, taking its manual edits and flags with it. When a fallback row
+   * doesn't match by id, adopt the one unclaimed row with the same Feature and
+   * Status rather than replacing it. Ambiguity (two candidates) declines to guess.
+   */
+  const adoptRenamedFallback = (name, section) => {
+    const candidates = crData.filter(
+      (r) =>
+        r.projectId === proj.id &&
+        (r.sourceRecordId || '').startsWith('fallback:') &&
+        !claimed.has(r.recordId) &&
+        normalize(r.name) === normalize(name) &&
+        (r.section || '') === (section || '')
+    )
+    return candidates.length === 1 ? candidates[0] : null
+  }
+
   computed.forEach(({ sourceRecordId, incoming, name, usedFallback }) => {
     processed++
     if (usedFallback && fallbackIdCounts[sourceRecordId] > 1) {
@@ -221,12 +243,24 @@ export function applySyncToProject(crData, proj, headers, rows) {
       )
     }
     const recordId = proj.id + '::' + sourceRecordId
-    const existing = crData.find((r) => r.recordId === recordId)
+    let existing = crData.find((r) => r.recordId === recordId)
+
+    if (!existing && usedFallback) {
+      const adopted = adoptRenamedFallback(name, incoming.section)
+      if (adopted) {
+        adopted.recordId = recordId
+        adopted.sourceRecordId = sourceRecordId
+        existing = adopted
+      }
+    }
+
     if (existing) {
+      claimed.add(existing.recordId)
       upsertRecord(existing, incoming)
       updated++
     } else {
       crData.push(makeNewRecord(proj.id, sourceRecordId, recordId, incoming))
+      claimed.add(recordId)
       created++
     }
   })
