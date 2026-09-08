@@ -98,7 +98,10 @@ export function parseDateValue(v, order = 'dmy') {
   return null
 }
 
-/** Business days between `date` and today, weekends and holidays excluded, end-exclusive. */
+/**
+ * Working days elapsed since `date`, weekends and holidays excluded. Today counts:
+ * a CR moved yesterday has been sitting a day, so it reads 1d rather than 0d.
+ */
 export function businessDaysFromDate(date) {
   const today = new Date()
   today.setHours(0, 0, 0, 0)
@@ -109,7 +112,7 @@ export function businessDaysFromDate(date) {
   let days = 0
   const cur = new Date(start)
   cur.setDate(cur.getDate() + 1)
-  while (cur < today) {
+  while (cur <= today) {
     if (!isNonWorkingDay(cur)) days++
     cur.setDate(cur.getDate() + 1)
   }
