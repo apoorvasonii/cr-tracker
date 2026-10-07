@@ -23,16 +23,16 @@ function OrderButtons({ position, isFirst, isLast, onMove }) {
 }
 
 export default function StatusesTable() {
-  const { state, currentProject: proj, update, showToast } = useApp()
+  const { state, currentProject: proj, update, undoable } = useApp()
 
   const usedKeys = new Set(state.crData.filter((r) => r.projectId === proj.id).map((r) => r.section))
   const unusedCount = proj.statusConfig.filter((s) => !usedKeys.has(s.key)).length
 
-  const remove = (key) => update(removeStatus(key))
+  const remove = (key) =>
+    undoable(removeStatus(key), `Status "${(proj.statusConfig.find((s) => s.key === key) || {}).label}" removed`)
 
   const cleanUp = () => {
-    update(removeUnusedStatuses())
-    showToast(`Removed ${unusedCount} unused status${unusedCount === 1 ? '' : 'es'}`)
+    undoable(removeUnusedStatuses(), `Removed ${unusedCount} unused status${unusedCount === 1 ? '' : 'es'}`)
   }
 
   return (

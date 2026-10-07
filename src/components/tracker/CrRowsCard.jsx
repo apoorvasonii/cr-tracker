@@ -1,7 +1,8 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useApp } from '../../state/AppContext'
-import { addRow, removeCustomColumn } from '../../state/actions'
+import { addRow, removeCustomColumn, setColumnHidden } from '../../state/actions'
 import {
+  HIDEABLE_COLUMNS,
   actionLabelOf,
   actionOptions,
   getProjectById,
@@ -12,7 +13,7 @@ import FilterDropdown from './FilterDropdown'
 import CrRow from './CrRow'
 import AddColumnModal from '../modals/AddColumnModal'
 
-function HeaderCell({ label, width, onRemove, align }) {
+function HeaderCell({ label, width, onRemove, removeTitle, align }) {
   return (
     <th
       style={{ width }}
@@ -24,7 +25,7 @@ function HeaderCell({ label, width, onRemove, align }) {
       {onRemove && (
         <button
           className="ml-1.5 text-ink-muted opacity-0 transition-opacity hover:text-red-600 group-hover:opacity-100"
-          title={`Remove column "${label}"`}
+          title={removeTitle || `Remove column "${label}"`}
           onClick={onRemove}
         >
           ×
@@ -35,7 +36,7 @@ function HeaderCell({ label, width, onRemove, align }) {
 }
 
 export default function CrRowsCard() {
-  const { state, currentProject: proj, update, showToast } = useApp()
+  const { state, currentProject: proj, update, undoable } = useApp()
   const [search, setSearch] = useState('')
   const [openPanel, setOpenPanel] = useState(null)
   const [statusFilter, setStatusFilter] = useState(null) // null = all
@@ -59,6 +60,33 @@ export default function CrRowsCard() {
   const effectiveAction = actionFilter ?? new Set(actionKeys)
 
   const customCols = proj?.customColumns || []
+  const hiddenCols = new Set(proj?.hiddenColumns || [])
+  const shown = (id) => !hiddenCols.has(id)
+  // Every column but Feature has a fixed width; Feature takes whatever the card
+  // has left. Left to the browser, the Status picker got squeezed until its label
+  // disappeared. The table only scrolls sideways once Feature would drop below
+  // FEATURE_MIN, i.e. on a narrow screen or with many custom columns.
+  const DATE_W = 145
+  const FEATURE_MIN = 150
+  const minTableWidth =
+    44 + FEATURE_MIN + 160 + 72 +
+    [['action', 140], ['planned', DATE_W], ['uatDate', DATE_W], ['brdDate', DATE_W], ['movedDate', DATE_W], ['flags', 70]]
+      .filter(([id]) => shown(id))
+      .reduce((sum, [, w]) => sum + w, 0) +
+    customCols.length * 150
+  const hideableHeader = (id, width) => {
+    const col = HIDEABLE_COLUMNS.find((c) => c.id === id)
+    return (
+      shown(id) && (
+        <HeaderCell
+          label={col.label}
+          width={width}
+          removeTitle={`Hide column "${col.label}" — bring it back from “Show column”`}
+          onRemove={() => undoable(setColumnHidden(id, true), `Column "${col.label}" hidden`)}
+        />
+      )
+    )
+  }
 
   const visible = useMemo(() => {
     const q = search.toLowerCase().trim()
@@ -147,6 +175,20 @@ export default function CrRowsCard() {
                 ? `${scopedTotal} row${scopedTotal === 1 ? '' : 's'}`
                 : `${visible.length} of ${scopedTotal} rows`}
             </span>
+            {hiddenCols.size > 0 && (
+              <select
+                className="field-select"
+                value=""
+                onChange={(e) => e.target.value && update(setColumnHidden(e.target.value, false))}
+              >
+                <option value="">Show column ({hiddenCols.size})</option>
+                {HIDEABLE_COLUMNS.filter((c) => hiddenCols.has(c.id)).map((c) => (
+                  <option key={c.id} value={c.id}>
+                    {c.label}
+                  </option>
+                ))}
+              </select>
+            )}
             <button className="btn" onClick={() => setAddColumnOpen(true)}>
               + Column
             </button>
@@ -163,29 +205,27 @@ export default function CrRowsCard() {
           className="overflow-auto rounded-b-xl"
           style={{ maxHeight: 'calc(100vh - var(--app-header-h, 116px) - 8.5rem)' }}
         >
-          <table className="w-full border-collapse">
+          <table className="table-fixed border-collapse" style={{ width: '100%', minWidth: minTableWidth }}>
             <thead>
               <tr>
-                <HeaderCell label="#" width="52px" />
-                <HeaderCell label="Feature" width="22%" />
-                <HeaderCell label="Status" width="185px" />
-                <HeaderCell label="Next Action On" width="165px" />
-                <HeaderCell label="Planned End Date" width="125px" />
-                <HeaderCell label="BRD Date" width="125px" />
-                <HeaderCell label="Moved to Status" width="125px" />
+                <HeaderCell label="#" width="44px" />
+                <HeaderCell label="Feature" />
+                <HeaderCell label="Status" width="160px" />
+                {hideableHeader('action', '140px')}
+                {hideableHeader('planned', `${DATE_W}px`)}
+                {hideableHeader('uatDate', `${DATE_W}px`)}
+                {hideableHeader('brdDate', `${DATE_W}px`)}
+                {hideableHeader('movedDate', `${DATE_W}px`)}
                 {customCols.map((c) => (
                   <HeaderCell
                     key={c.label}
                     label={c.label}
-                    width="140px"
-                    onRemove={() => {
-                      update(removeCustomColumn(c.id))
-                      showToast(`Column "${c.label}" removed`)
-                    }}
+                    width="150px"
+                    onRemove={() => undoable(removeCustomColumn(c.id), `Column "${c.label}" removed`)}
                   />
                 ))}
-                <HeaderCell label="Flags" width="120px" />
-                <HeaderCell label="" width="70px" />
+                {hideableHeader('flags', '70px')}
+                <HeaderCell label="" width="72px" />
               </tr>
             </thead>
             <tbody>
@@ -195,6 +235,7 @@ export default function CrRowsCard() {
                   index={i + 1}
                   row={row}
                   customCols={customCols}
+                  hiddenCols={hiddenCols}
                 />
               ))}
             </tbody>

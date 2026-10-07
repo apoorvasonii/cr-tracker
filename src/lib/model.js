@@ -4,12 +4,43 @@ import { normalize, simpleHash, slugifyId, slugifyStatus } from './strings'
 export const OVERRIDABLE_FIELDS = ['name', 'section', 'action', 'planned', 'overall', 'age', 'brdDate', 'movedDate']
 
 /**
- * No status vocabulary is shipped: statuses are created from the values actually
- * present in the sheet, on sync. Colour, order, whether a status counts as
- * delivered, whether it shows in Actionable Points — all configurable afterwards.
+ * Every project starts with this standard vocabulary. A project's BA can then
+ * rename, recolour, reorder or remove any of them under Configure → Statuses;
+ * sheet values not in the list are still added as statuses on sync.
  */
+export const STANDARD_STATUSES = [
+  // Listed in lifecycle order, which is also the Briefing's section order.
+  { key: 'screview', label: 'Under Salescode Review', color: '#2f5fa8' },
+  { key: 'clientuat', label: 'Under client UAT', color: '#7c5cc9' },
+  { key: 'uatfeedback', label: 'Under UAT Feedback', color: '#b8763a' },
+  { key: 'readyforprod', label: 'Ready for Prod Release', color: '#2d7a94' },
+  { key: 'live', label: 'Live', color: '#3f8a52', delivered: true, showInActionable: false },
+  { key: 'clientdep', label: 'Dependency on Client', color: '#96332a' },
+  { key: 'onhold', label: 'On Hold', color: '#8a5a1f' },
+]
+
+/**
+ * Tracker columns a project can hide. Hiding is display-only: the data stays,
+ * syncs and prints in the Briefing as before. Feature and Status always show.
+ */
+export const HIDEABLE_COLUMNS = [
+  { id: 'action', label: 'Next Action On' },
+  { id: 'planned', label: 'Planned End Date' },
+  { id: 'uatDate', label: 'UAT Date' },
+  { id: 'brdDate', label: 'BRD Date' },
+  { id: 'movedDate', label: 'Moved to Status' },
+  { id: 'flags', label: 'Flags' },
+]
+
+/** Where a manually added CR starts, if the project still has it. */
+export const DEFAULT_NEW_CR_STATUS = 'Under Salescode Review'
+
+export function makeStandardStatus(def) {
+  return { showInActionable: true, showInBriefing: true, delivered: false, ...def }
+}
+
 export function defaultStatusConfig() {
-  return []
+  return STANDARD_STATUSES.map(makeStandardStatus)
 }
 
 
@@ -35,6 +66,7 @@ export function makeMetric(overrides = {}) {
     source: 'statuses',
     statusKeys: [],
     value: 0,
+    hidden: false,
     showPercent: true,
     ...overrides,
   }
@@ -44,10 +76,11 @@ export function makeMetric(overrides = {}) {
 export function defaultOverallMetrics() {
   return [
     makeMetric({ id: 'metricTotal', label: 'Total CRs', color: '#2b2b2b', source: 'all', showPercent: false }),
-    // No statuses exist until a sheet is synced, so these start empty: tick the
-    // statuses each should count once the vocabulary is there.
-    makeMetric({ id: 'metricLive', label: 'Live', color: '#3f8a52', source: 'statuses' }),
-    makeMetric({ id: 'metricPipeline', label: 'In Pipeline', color: '#2f5fa8', source: 'statuses' }),
+    makeMetric({ id: 'metricLive', label: 'Live', color: '#3f8a52', source: 'statuses', statusKeys: ['live'] }),
+    makeMetric({
+      id: 'metricPipeline', label: 'In Pipeline', color: '#2f5fa8', source: 'statuses',
+      statusKeys: STANDARD_STATUSES.filter((s) => !s.delivered && s.key !== 'onhold').map((s) => s.key),
+    }),
   ]
 }
 
@@ -131,6 +164,9 @@ export function makeProject(lobName, displayName, existingProjects = [], source 
     sheetTabValue: '',
     mapping: defaultMapping(),
     statusConfig: defaultStatusConfig(),
+    standardStatusesSeeded: true,
+    standardStatusesOrdered: true,
+    hiddenColumns: [], // ids from HIDEABLE_COLUMNS
     statusMapping: [], // [{ id, sheetValue, statusKey }]
     discoveredStatusValues: [], // raw values last seen in the mapped status column
     discoveredActionValues: [], // raw values last seen in the mapped Next Action On column
@@ -175,6 +211,7 @@ export function makeNewRecord(projectId, sourceRecordId, recordId, incoming) {
     overall: incoming.overall || '-',
     age: incoming.age || '-',
     brdDate: incoming.brdDate || '',
+    uatDate: '', // tracker-only: when UAT delivery is due, independent of status
     movedDate: incoming.movedDate || '',
     flags: incoming.flags ? incoming.flags.slice() : [],
     custom: incoming.custom ? { ...incoming.custom } : {},
@@ -308,7 +345,8 @@ export function metricValue(state, proj, metric) {
 }
 
 export function projectTiles(state, proj) {
-  return (proj.overallMetrics || []).map((m) => ({
+  // A hidden tile keeps its label, colour and definition; it just doesn't print.
+  return (proj.overallMetrics || []).filter((m) => !m.hidden).map((m) => ({
     key: m.id,
     label: m.label,
     color: m.color,

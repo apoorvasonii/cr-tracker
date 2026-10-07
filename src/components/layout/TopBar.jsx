@@ -80,7 +80,9 @@ export default function TopBar({ onGoToConfig }) {
         const warn = result.warnings.length
           ? ` (${result.warnings.length} warning${result.warnings.length === 1 ? '' : 's'})`
           : ''
-        showToast(`Synced ${name}: ${result.recordsCreated} added, ${result.recordsUpdated} updated${removedText(result)}${warn}`)
+        showToast(`Synced ${name}: ${result.recordsCreated} added, ${result.recordsUpdated} updated${removedText(result)}${warn}`, false, result.undo && (() => { result.undo(); showToast('Sync undone') }))
+      } else if (result.cancelled) {
+        showToast('Sync cancelled — nothing was changed')
       } else {
         showToast(`Sync failed for ${name}: ${result.errors[0] || 'unknown error'}`, true)
       }

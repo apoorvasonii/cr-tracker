@@ -11,7 +11,14 @@ export default function SheetConnectionCard({ onOpenConnect }) {
   const syncNow = () => {
     showToast('Syncing ' + currentProject.lobName + '...')
     syncProject(currentProject.id).then((result) => {
-      if (result.success) showToast(`Synced: ${result.recordsCreated} added, ${result.recordsUpdated} updated${removedText(result)}`)
+      if (result.success) {
+        showToast(
+          `Synced: ${result.recordsCreated} added, ${result.recordsUpdated} updated${removedText(result)}`,
+          false,
+          result.undo && (() => { result.undo(); showToast('Sync undone') })
+        )
+      }
+      else if (result.cancelled) showToast('Sync cancelled — nothing was changed')
       else showToast(`Sync failed: ${result.errors[0] || 'unknown error'}`, true)
     })
   }

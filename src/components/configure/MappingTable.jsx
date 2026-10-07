@@ -31,7 +31,7 @@ function TypeTag({ type }) {
 }
 
 export default function MappingTable({ onAddColumn }) {
-  const { currentProject, update, showToast } = useApp()
+  const { currentProject, update, showToast, undoable } = useApp()
   const m = currentProject.mapping
   const manual = isManualProject(currentProject)
   const hasHeaders = (currentProject.lastFetchedHeaders || []).length > 0
@@ -42,8 +42,7 @@ export default function MappingTable({ onAddColumn }) {
   }
 
   const remove = (col) => {
-    update(removeCustomColumn(col.id))
-    showToast(`Column "${col.label}" removed`)
+    undoable(removeCustomColumn(col.id), `Column "${col.label}" removed`)
   }
 
   return (

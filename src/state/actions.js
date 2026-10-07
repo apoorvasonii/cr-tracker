@@ -5,6 +5,7 @@
  */
 import {
   ASSIGNEE_PREFIX,
+  DEFAULT_NEW_CR_STATUS,
   OVERRIDABLE_FIELDS,
   getProjectById,
   makeAssignee,
@@ -14,7 +15,7 @@ import {
   makeStatusFromLabel,
   mapSheetStatusToProjectStatus,
 } from '../lib/model'
-import { sequentialId, slugifyStatus, uid } from '../lib/strings'
+import { normalize, sequentialId, slugifyStatus, uid } from '../lib/strings'
 import { todayIso } from '../lib/dates'
 
 /** Runs `fn` against the draft's copy of the current project, if one is selected. */
@@ -290,6 +291,12 @@ export const addCustomColumn = (label, type, mappedColumn) =>
 export const removeCustomColumn = (id) =>
   withCurrentProject((proj) => { proj.customColumns = proj.customColumns.filter((c) => c.id !== id) })
 
+export const setColumnHidden = (id, hidden) =>
+  withCurrentProject((proj) => {
+    const rest = (proj.hiddenColumns || []).filter((c) => c !== id)
+    proj.hiddenColumns = hidden ? [...rest, id] : rest
+  })
+
 /* ---------------- CR rows ---------------- */
 /** Any edit here is, by definition, a manual override. */
 export const updateRow = (recordId, field, value) =>
@@ -301,15 +308,25 @@ export const updateRow = (recordId, field, value) =>
     }
   })
 
-/** Changing status also stamps "moved to current status" with today. */
-export const updateRowSection = (recordId, value) =>
-  withRow(recordId, (row) => {
-    row.section = value
-    row.movedDate = todayIso()
-    row.overrides = row.overrides || {}
-    row.overrides.section = true
-    row.overrides.movedDate = true
-  })
+/**
+ * A status change stamps "moved to current status" with today and clears Planned
+ * End Date: that date is when the *current* status should end, so the old one no
+ * longer applies and the BA sets a fresh one.
+ */
+function moveRowToStatus(row, key) {
+  const changed = row.section !== key
+  row.section = key
+  row.movedDate = todayIso()
+  row.overrides = row.overrides || {}
+  row.overrides.section = true
+  row.overrides.movedDate = true
+  if (changed) {
+    row.planned = '-'
+    row.overrides.planned = true
+  }
+}
+
+export const updateRowSection = (recordId, value) => withRow(recordId, (row) => moveRowToStatus(row, value))
 
 /**
  * Tracker-only projects have no sheet to learn statuses from, so their vocabulary
@@ -328,11 +345,7 @@ export const addStatusForRow = (recordId, label) => (draft) => {
   const status = existing || makeStatusFromLabel(trimmed, proj.statusConfig)
   if (!existing) proj.statusConfig.push(status)
 
-  row.section = status.key
-  row.movedDate = todayIso()
-  row.overrides = row.overrides || {}
-  row.overrides.section = true
-  row.overrides.movedDate = true
+  moveRowToStatus(row, status.key)
 }
 
 export const updateCustomFieldValue = (recordId, columnId, value) =>
@@ -372,7 +385,7 @@ export const addRow = () =>
     draft.crData.push(
       makeNewRecord(proj.id, sourceRecordId, recordId, {
         name: 'New CR',
-        section: (proj.statusConfig[0] || {}).key || '',
+        section: (proj.statusConfig.find((s) => normalize(s.label) === normalize(DEFAULT_NEW_CR_STATUS)) || proj.statusConfig[0] || {}).key || '',
         action: '',
         planned: '-',
         overall: '-',

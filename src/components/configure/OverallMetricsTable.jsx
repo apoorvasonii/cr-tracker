@@ -80,6 +80,8 @@ function DefinitionCell({ metric, proj, update }) {
 export default function OverallMetricsTable() {
   const { state, currentProject: proj, update } = useApp()
   const metrics = proj.overallMetrics || []
+  // Percentages are read against the first tile that actually prints.
+  const baseId = metrics.find((m) => !m.hidden)?.id
 
   return (
     <div className="card p-5">
@@ -105,7 +107,10 @@ export default function OverallMetricsTable() {
             <th style={{ width: '6%' }}>Color</th>
             <th style={{ width: '14%' }}>Counts</th>
             <th style={{ width: '35%' }}>Definition</th>
-            <th style={{ width: '7%' }} title="Show this tile's value as a % of the first tile">
+            <th style={{ width: '7%' }} title="Uncheck to keep the tile configured but leave it out of the Briefing">
+              Show
+            </th>
+            <th style={{ width: '7%' }} title="Show this tile's value as a % of the first shown tile">
               Show %
             </th>
             <th style={{ width: '7%' }}>Now</th>
@@ -115,13 +120,15 @@ export default function OverallMetricsTable() {
         <tbody>
           {metrics.length === 0 && (
             <tr>
-              <td colSpan={8} className="py-8 text-center text-ink-muted">
+              <td colSpan={9} className="py-8 text-center text-ink-muted">
                 No tiles — the Briefing’s Overall Status panel will be empty. Add one to start.
               </td>
             </tr>
           )}
-          {metrics.map((m, i) => (
-            <tr key={m.id}>
+          {metrics.map((m, i) => {
+            const isBase = m.id === baseId
+            return (
+            <tr key={m.id} className={m.hidden ? 'opacity-45' : undefined}>
               <td>
                 <OrderButtons
                   position={i + 1}
@@ -166,9 +173,18 @@ export default function OverallMetricsTable() {
                 <input
                   type="checkbox"
                   className="h-4 w-4 accent-brand-600"
-                  disabled={i === 0}
-                  title={i === 0 ? 'The first tile is the percentage base' : undefined}
-                  checked={i !== 0 && m.showPercent !== false}
+                  title="Show this tile in the Briefing and the email"
+                  checked={!m.hidden}
+                  onChange={(e) => update(updateOverallMetric(m.id, 'hidden', !e.target.checked))}
+                />
+              </td>
+              <td className="text-center">
+                <input
+                  type="checkbox"
+                  className="h-4 w-4 accent-brand-600"
+                  disabled={isBase}
+                  title={isBase ? 'The first shown tile is the percentage base' : undefined}
+                  checked={!isBase && m.showPercent !== false}
                   onChange={(e) => update(updateOverallMetric(m.id, 'showPercent', e.target.checked))}
                 />
               </td>
@@ -182,7 +198,8 @@ export default function OverallMetricsTable() {
                 </button>
               </td>
             </tr>
-          ))}
+            )
+          })}
         </tbody>
       </table>
     </div>

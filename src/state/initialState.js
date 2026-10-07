@@ -1,5 +1,6 @@
 import { Store } from './storage'
-import { defaultMapping, makeMetric, makeProject } from '../lib/model'
+import { STANDARD_STATUSES, defaultMapping, makeMetric, makeProject, makeStandardStatus } from '../lib/model'
+import { normalize } from '../lib/strings'
 
 /** Backfills fields added by later versions onto older persisted projects. */
 export function migrateProject(p, legacyAgeUnit) {
@@ -9,6 +10,7 @@ export function migrateProject(p, legacyAgeUnit) {
   if (!p.ignoredStatusValues) p.ignoredStatusValues = []
   if (!p.customColumns) p.customColumns = []
   if (!p.assigneeConfig) p.assigneeConfig = []
+  if (!p.hiddenColumns) p.hiddenColumns = []
   // Saved tab labels are gone: a workbook's own tab names are offered instead.
   delete p.sheetTabConfig
   if (!p.mapping) p.mapping = defaultMapping()
@@ -89,7 +91,69 @@ export function migrateProject(p, legacyAgeUnit) {
   if (!p.overallAgeUnit) p.overallAgeUnit = legacyAgeUnit || 'weeks'
 
   if (!p.lastFetchedHeaders) p.lastFetchedHeaders = []
+
+  // Projects created before the standard status list get it added once, after
+  // their own statuses. Flagged so a status the BA later removes stays removed.
+  if (!p.standardStatusesSeeded) {
+    p.statusConfig = p.statusConfig || []
+    STANDARD_STATUSES.forEach((def) => {
+      if (p.statusConfig.some((s) => normalize(s.label) === normalize(def.label))) return
+      const keyTaken = p.statusConfig.some((s) => s.key === def.key)
+      p.statusConfig.push(makeStandardStatus(keyTaken ? { ...def, key: def.key + 'std' } : def))
+    })
+    p.standardStatusesSeeded = true
+  }
+
+  // Sheet spellings that duplicate a standard status are folded into it: the
+  // sheet value is mapped to the standard status, tiles follow, and rows are
+  // moved by applyStatusRedirects (rows are migrated separately from projects).
+  if (!p.statusRedirects) p.statusRedirects = {}
+  STATUS_VARIANTS.forEach(([variantLabel, standardLabel]) => {
+    const variant = p.statusConfig.find((s) => normalize(s.label) === normalize(variantLabel))
+    const standard = p.statusConfig.find((s) => normalize(s.label) === normalize(standardLabel))
+    if (!variant || !standard) return
+    p.statusRedirects[variant.key] = standard.key
+    p.statusConfig = p.statusConfig.filter((s) => s !== variant)
+    p.statusMapping = p.statusMapping.map((sm) => (sm.statusKey === variant.key ? { ...sm, statusKey: standard.key } : sm))
+    if (!p.statusMapping.some((sm) => normalize(sm.sheetValue) === normalize(variant.label))) {
+      p.statusMapping.push({ id: 'sm' + Math.random().toString(36).slice(2, 8), sheetValue: variant.label, statusKey: standard.key })
+    }
+    ;(p.overallMetrics || []).forEach((m) => {
+      if (!(m.statusKeys || []).includes(variant.key)) return
+      m.statusKeys = [...new Set(m.statusKeys.map((k) => (k === variant.key ? standard.key : k)))]
+    })
+  })
+
+  // The standard statuses were first seeded in an arbitrary order. Put them in
+  // lifecycle order once, in the slots they already occupy, so the project's
+  // own statuses keep their places; later reordering by the BA sticks.
+  if (!p.standardStatusesOrdered) {
+    const rank = (s) => STANDARD_STATUSES.findIndex((d) => normalize(d.label) === normalize(s.label))
+    const standard = p.statusConfig.filter((s) => rank(s) >= 0).sort((a, b) => rank(a) - rank(b))
+    let i = 0
+    p.statusConfig = p.statusConfig.map((s) => (rank(s) >= 0 ? standard[i++] : s))
+    p.standardStatusesOrdered = true
+  }
   return p
+}
+
+/** [sheet spelling, standard status it duplicates] */
+const STATUS_VARIANTS = [
+  ['Dependancy on Client', 'Dependency on Client'],
+  ['HOLD', 'On Hold'],
+]
+
+/** Moves rows off statuses that migrateProject folded into a standard one. */
+export function applyStatusRedirects(projects, crData) {
+  const byId = new Map(projects.map((p) => [p.id, p.statusRedirects || {}]))
+  crData.forEach((r) => {
+    const to = (byId.get(r.projectId) || {})[r.section]
+    if (to) r.section = to
+    if (r.sourceSnapshot && (byId.get(r.projectId) || {})[r.sourceSnapshot.section]) {
+      r.sourceSnapshot.section = byId.get(r.projectId)[r.sourceSnapshot.section]
+    }
+  })
+  return crData
 }
 
 /** The 'salescode' action value predates the generic 'vendor' action value. */
@@ -105,18 +169,18 @@ export function loadInitialState() {
 
   if (saved && Array.isArray(saved.projects) && saved.projects.length) {
     const projects = saved.projects.map((p) => migrateProject(p, saved.display?.overallAgeUnit))
+    const crData = applyStatusRedirects(projects, (Array.isArray(saved.crData) ? saved.crData : []).map(migrateRow))
     return {
       projects,
       // 'ALL' was the old cross-project view; the app now always scopes to one project.
       currentProjectId: projects.some((p) => p.id === saved.currentProjectId)
         ? saved.currentProjectId
         : projects[0].id,
-      crData: (Array.isArray(saved.crData) ? saved.crData : []).map(migrateRow),
+      crData,
     }
   }
 
-  // First run starts empty: no invented rows, and no status vocabulary — both come
-  // from whatever sheet gets connected.
+  // First run starts with no rows; they come from whatever sheet gets connected.
   const proj = makeProject('New Project', 'New Project', [])
 
   return {

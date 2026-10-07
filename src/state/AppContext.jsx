@@ -3,7 +3,8 @@ import { Store, installStoreFlushHandlers } from './storage'
 import { loadInitialState } from './initialState'
 import { getProjectById, isManualProject } from '../lib/model'
 import { fetchSheetForProject } from '../lib/sheets'
-import { applySyncToProject, recordSyncOutcome } from '../lib/sync'
+import { applySyncToProject, previewSync, recordSyncOutcome } from '../lib/sync'
+import SyncConfirmModal from '../components/modals/SyncConfirmModal'
 import { isSharedMode } from '../lib/supabase'
 import { applyRemoteChange, entitiesToState, fetchAll, pushDiff, stateToEntities, subscribe } from './remoteStore'
 
@@ -12,6 +13,8 @@ const AppContext = createContext(null)
 export function AppProvider({ children }) {
   const [state, setState] = useState(loadInitialState)
   const [toast, setToast] = useState(null) // { message, isError, key }
+  // A fetched sync waiting on the user: { projectName, preview, apply, cancel }
+  const [pendingSync, setPendingSync] = useState(null)
   // 'local' | 'connecting' | 'shared' | 'error' — surfaced in the header so nobody
   // edits for ten minutes believing their work is shared when it isn't.
   const [remoteStatus, setRemoteStatus] = useState(isSharedMode ? 'connecting' : 'local')
@@ -39,8 +42,79 @@ export function AppProvider({ children }) {
     return out
   }, [])
 
-  const showToast = useCallback((message, isError = false) => {
-    setToast({ message, isError, key: Math.random() })
+  // The most recent undo, also reachable with Ctrl/Cmd+Z until it's used or replaced.
+  const lastUndoRef = useRef(null)
+
+  /** `undo` (optional) puts an Undo button on the toast. */
+  const showToast = useCallback((message, isError = false, undo = null) => {
+    lastUndoRef.current = undo
+    setToast({ message, isError, undo, key: Math.random() })
+  }, [])
+
+  /**
+   * Runs a recipe and returns a function that reverts it. Only the project and
+   * rows the recipe actually touched are put back, so in a shared workspace an
+   * undo never rolls back someone else's edits to other rows.
+   */
+  const updateWithUndo = useCallback(
+    (recipe) => {
+      const before = stateRef.current
+      const out = update(recipe)
+      const after = stateRef.current
+
+      const json = (x) => JSON.stringify(x)
+      const afterProjects = new Map(after.projects.map((p) => [p.id, json(p)]))
+      const touchedProjects = before.projects.filter((p) => afterProjects.get(p.id) !== json(p))
+      const beforeRows = new Map(before.crData.map((r, i) => [r.recordId, { row: r, index: i }]))
+      const afterRows = new Map(after.crData.map((r) => [r.recordId, json(r)]))
+      const touchedRows = before.crData.filter((r) => afterRows.get(r.recordId) !== json(r))
+      const addedIds = after.crData.filter((r) => !beforeRows.has(r.recordId)).map((r) => r.recordId)
+      if (!touchedProjects.length && !touchedRows.length && !addedIds.length) return { out, undo: null }
+
+      const undo = () => {
+        if (lastUndoRef.current === undo) lastUndoRef.current = null
+        update((draft) => {
+          touchedProjects.forEach((old) => {
+            const i = draft.projects.findIndex((p) => p.id === old.id)
+            if (i >= 0) draft.projects[i] = structuredClone(old)
+            else draft.projects.push(structuredClone(old))
+          })
+          draft.crData = draft.crData.filter((r) => !addedIds.includes(r.recordId))
+          touchedRows.forEach((old) => {
+            const i = draft.crData.findIndex((r) => r.recordId === old.recordId)
+            if (i >= 0) draft.crData[i] = structuredClone(old)
+            else draft.crData.splice(Math.min(beforeRows.get(old.recordId).index, draft.crData.length), 0, structuredClone(old))
+          })
+        })
+      }
+      return { out, undo }
+    },
+    [update]
+  )
+
+  /** Runs a recipe and toasts `message` with an Undo button. */
+  const undoable = useCallback(
+    (recipe, message) => {
+      const { out, undo } = updateWithUndo(recipe)
+      showToast(message, false, undo && (() => { undo(); showToast('Undone') }))
+      return out
+    },
+    [updateWithUndo, showToast]
+  )
+
+  useEffect(() => {
+    const onKey = (e) => {
+      if (!(e.metaKey || e.ctrlKey) || e.shiftKey || e.key.toLowerCase() !== 'z') return
+      // Inside a text field, Cmd+Z belongs to the field.
+      const t = e.target
+      if (t && (t.isContentEditable || ['INPUT', 'TEXTAREA', 'SELECT'].includes(t.tagName))) return
+      const undo = lastUndoRef.current
+      if (!undo) return
+      e.preventDefault()
+      undo()
+    }
+    document.addEventListener('keydown', onKey)
+    return () => document.removeEventListener('keydown', onKey)
   }, [])
 
   useEffect(() => {
@@ -151,21 +225,55 @@ export function AppProvider({ children }) {
         })
       }
 
+      const priorStatus = { syncStatus: snapshot.syncStatus, syncError: snapshot.syncError }
       update((draft) => {
         const proj = getProjectById(draft.projects, projectId)
         if (proj) { proj.syncStatus = 'syncing'; proj.syncError = null }
       })
 
+      // A confirmed sync can be undone: the result carries `undo` for the caller's toast.
+      const apply = (headers, rows) => {
+        const { out, undo } = updateWithUndo((draft) => {
+          const proj = getProjectById(draft.projects, projectId)
+          if (!proj) return null
+          const result = applySyncToProject(draft.crData, proj, headers, rows)
+          recordSyncOutcome(proj, result)
+          return result
+        })
+        return out && undo ? { ...out, undo } : out
+      }
+
       return fetchSheetForProject(snapshot)
-        .then(({ headers, rows }) =>
-          update((draft) => {
-            const proj = getProjectById(draft.projects, projectId)
-            if (!proj) return null
-            const result = applySyncToProject(draft.crData, proj, headers, rows)
-            recordSyncOutcome(proj, result)
-            return result
+        .then(({ headers, rows }) => {
+          // Dry-run first. A sync that would remove, add or change rows on the
+          // tracker waits for the user to confirm; a no-op or failed one applies.
+          const current = stateRef.current
+          const proj = getProjectById(current.projects, projectId)
+          if (!proj) return apply(headers, rows)
+          const preview = previewSync(current.crData, proj, headers, rows)
+          const { added, removed, changed } = preview
+          if (!preview.result.success || !(added.length || removed.length || changed.length)) {
+            return apply(headers, rows)
+          }
+          return new Promise((resolve) => {
+            setPendingSync({
+              projectName: proj.lobName,
+              preview,
+              apply: () => {
+                setPendingSync(null)
+                resolve(apply(headers, rows))
+              },
+              cancel: () => {
+                setPendingSync(null)
+                update((draft) => {
+                  const p = getProjectById(draft.projects, projectId)
+                  if (p) Object.assign(p, priorStatus)
+                })
+                resolve({ ...preview.result, success: false, cancelled: true, errors: ['Sync cancelled — nothing was changed.'] })
+              },
+            })
           })
-        )
+        })
         .catch((err) => {
           const message = err && err.message ? err.message : String(err)
           const failed = {
@@ -179,7 +287,7 @@ export function AppProvider({ children }) {
           return failed
         })
     },
-    [update]
+    [update, updateWithUndo]
   )
 
   /** Applies rows already fetched by the Connect wizard, with no second request. */
@@ -210,14 +318,24 @@ export function AppProvider({ children }) {
       remoteStatus,
       update,
       showToast,
+      undoable,
       toast,
       syncProject,
       applyFetchedRows,
     }),
-    [state, currentProject, remoteStatus, update, showToast, toast, syncProject, applyFetchedRows]
+    [state, currentProject, remoteStatus, update, showToast, undoable, toast, syncProject, applyFetchedRows]
   )
 
-  return <AppContext.Provider value={value}>{children}</AppContext.Provider>
+  return (
+    <AppContext.Provider value={value}>
+      {children}
+      <SyncConfirmModal
+        pending={pendingSync}
+        onConfirm={() => pendingSync.apply()}
+        onCancel={() => pendingSync.cancel()}
+      />
+    </AppContext.Provider>
+  )
 }
 
 export function useApp() {

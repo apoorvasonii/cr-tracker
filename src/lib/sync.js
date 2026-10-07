@@ -8,6 +8,7 @@ import {
   mapSheetStatusToProjectStatus,
   stableFallbackId,
   VENDOR_NAME,
+  actionLabelOf,
 } from './model'
 
 /**
@@ -347,6 +348,59 @@ export function recordSyncOutcome(proj, result) {
   proj.syncError = result.errors[0] || null
   proj.lastSyncedAt = Date.now()
   proj.lastSyncStats = result
+}
+
+/** Row fields a sync can change, as the tracker labels them. */
+const PREVIEW_FIELDS = [
+  ['name', 'Feature'],
+  ['section', 'Status'],
+  ['action', 'Next Action On'],
+  ['planned', 'Planned End Date'],
+  ['brdDate', 'BRD Date'],
+  ['movedDate', 'Moved to Status'],
+]
+
+/**
+ * Runs a sync against copies of the state and reports what it *would* do to
+ * this project's rows, without touching anything: rows added, rows removed,
+ * and rows whose visible values would change (with old → new per field).
+ */
+export function previewSync(crData, proj, headers, rows) {
+  const before = crData.filter((r) => r.projectId === proj.id)
+  const afterData = structuredClone(crData)
+  const afterProj = structuredClone(proj)
+  const result = applySyncToProject(afterData, afterProj, headers, rows)
+
+  const after = afterData.filter((r) => r.projectId === proj.id)
+  const beforeById = new Map(before.map((r) => [r.recordId, r]))
+  const afterIds = new Set(after.map((r) => r.recordId))
+  const statusLabel = (p, key) => (p.statusConfig.find((s) => s.key === key) || {}).label || key || '—'
+  const show = (p, field, v) => {
+    if (field === 'section') return statusLabel(p, v)
+    if (field === 'action') return actionLabelOf(p, v) || '—'
+    return v || '—'
+  }
+
+  const added = after.filter((r) => !beforeById.has(r.recordId)).map((r) => r.name)
+  const removed = before.filter((r) => !afterIds.has(r.recordId)).map((r) => r.name)
+  const changed = []
+  after.forEach((r) => {
+    const old = beforeById.get(r.recordId)
+    if (!old) return
+    const fields = PREVIEW_FIELDS.filter(([f]) => (old[f] || '') !== (r[f] || '')).map(([f, label]) => ({
+      label,
+      from: show(proj, f, old[f]),
+      to: show(afterProj, f, r[f]),
+    }))
+    ;(proj.customColumns || []).forEach((c) => {
+      const a = (old.custom || {})[c.id] || ''
+      const b = (r.custom || {})[c.id] || ''
+      if (a !== b) fields.push({ label: c.label, from: a || '—', to: b || '—' })
+    })
+    if (fields.length) changed.push({ name: r.name, fields })
+  })
+
+  return { result, added, removed, changed }
 }
 
 /** " , N removed" — omitted entirely when a sync removed nothing. */

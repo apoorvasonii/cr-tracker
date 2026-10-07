@@ -25,9 +25,12 @@ function isOverdue(row, delivered, dateOrder) {
 /** Sentinel option value: "type a status that doesn't exist yet". */
 const NEW_STATUS = '__new_status__'
 
-/** `customCols` is the project's custom column set, in the order it configures them. */
-export default function CrRow({ row, index, customCols }) {
-  const { state, update, showToast } = useApp()
+/**
+ * `customCols` is the project's custom column set, in the order it configures them;
+ * `hiddenCols` the built-in columns this project has hidden.
+ */
+export default function CrRow({ row, index, customCols, hiddenCols }) {
+  const { state, update, undoable } = useApp()
   const rowProj = getProjectById(state.projects, row.projectId)
   if (!rowProj) return null
 
@@ -38,11 +41,11 @@ export default function CrRow({ row, index, customCols }) {
   const plannedIso = plannedDate ? toIsoDate(plannedDate) : ''
   const hasOverride = row.overrides && Object.values(row.overrides).some(Boolean)
 
-  const cell = 'px-3 py-2.5 align-top'
+  const cell = 'px-2 py-2.5 align-top'
+  const shown = (id) => !hiddenCols.has(id)
 
   const reset = () => {
-    update(resetRowOverrides(row.recordId))
-    showToast('Row reset to last-synced Sheet values')
+    undoable(resetRowOverrides(row.recordId), 'Row reset to last-synced Sheet values')
   }
 
   return (
@@ -91,50 +94,69 @@ export default function CrRow({ row, index, customCols }) {
         />
       </td>
 
-      <td className={cell}>
-        <select
-          className="field-select w-full"
-          value={row.action || ''}
-          onChange={(e) => update(updateRow(row.recordId, 'action', e.target.value))}
-        >
-          {/* The two standard parties, this project's own assignees, then blank —
-              a real state meaning the sheet didn't say and nobody has claimed it. */}
-          {actionOptions(rowProj).map((o) => (
-            <option key={o.value} value={o.value}>
-              {o.label}
-            </option>
-          ))}
-        </select>
-      </td>
+      {shown('action') && (
+        <td className={cell}>
+          <select
+            className="field-select w-full"
+            value={row.action || ''}
+            onChange={(e) => update(updateRow(row.recordId, 'action', e.target.value))}
+          >
+            {/* The two standard parties, this project's own assignees, then blank —
+                a real state meaning the sheet didn't say and nobody has claimed it. */}
+            {actionOptions(rowProj).map((o) => (
+              <option key={o.value} value={o.value}>
+                {o.label}
+              </option>
+            ))}
+          </select>
+        </td>
+      )}
 
       {/* Picked like BRD Date, but stored as dd/mm/yyyy: that's the form the sheet
           sync writes and the briefing reads. Clearing the picker means "-". */}
-      <td className={cell}>
-        <input
-          type="date"
-          className="field w-full"
-          value={plannedIso}
-          onChange={(e) => update(updateRow(row.recordId, 'planned', formatPlanned(e.target.value)))}
-        />
-      </td>
+      {shown('planned') && (
+        <td className={cell}>
+          <input
+            type="date"
+            className="field w-full"
+            value={plannedIso}
+            onChange={(e) => update(updateRow(row.recordId, 'planned', formatPlanned(e.target.value)))}
+          />
+        </td>
+      )}
 
-      <td className={cell}>
-        <input
-          type="date"
-          className="field w-full"
-          value={row.brdDate || ''}
-          onChange={(e) => update(updateRow(row.recordId, 'brdDate', e.target.value))}
-        />
-      </td>
+      {shown('uatDate') && (
+        <td className={cell}>
+          <input
+            type="date"
+            className="field w-full"
+            value={row.uatDate || ''}
+            onChange={(e) => update(updateRow(row.recordId, 'uatDate', e.target.value))}
+          />
+        </td>
+      )}
 
-      <td className={cell}>
-        <input
-          type="date"
-          className="field w-full"
-          value={row.movedDate || ''}
-          onChange={(e) => update(updateRow(row.recordId, 'movedDate', e.target.value))}
-        />
-      </td>
+      {shown('brdDate') && (
+        <td className={cell}>
+          <input
+            type="date"
+            className="field w-full"
+            value={row.brdDate || ''}
+            onChange={(e) => update(updateRow(row.recordId, 'brdDate', e.target.value))}
+          />
+        </td>
+      )}
+
+      {shown('movedDate') && (
+        <td className={cell}>
+          <input
+            type="date"
+            className="field w-full"
+            value={row.movedDate || ''}
+            onChange={(e) => update(updateRow(row.recordId, 'movedDate', e.target.value))}
+          />
+        </td>
+      )}
 
       {customCols.map((c) => (
         <td key={c.id} className={cell}>
@@ -147,29 +169,31 @@ export default function CrRow({ row, index, customCols }) {
         </td>
       ))}
 
-      <td className={cell}>
-        <div className="flex flex-wrap gap-1">
-          {rowProj.flagConfig.map((f) => {
-            const active = (row.flags || []).includes(f.id)
-            return (
-              <label
-                key={f.id}
-                className={`chip ${active ? 'chip-active' : ''}`}
-                style={active ? { backgroundColor: f.color, borderColor: f.color } : undefined}
-                title={f.label}
-              >
-                <input
-                  type="checkbox"
-                  className="hidden"
-                  checked={active}
-                  onChange={(e) => update(toggleRowFlag(row.recordId, f.id, e.target.checked))}
-                />
-                {f.symbol}
-              </label>
-            )
-          })}
-        </div>
-      </td>
+      {shown('flags') && (
+        <td className={cell}>
+          <div className="flex flex-wrap gap-1">
+            {rowProj.flagConfig.map((f) => {
+              const active = (row.flags || []).includes(f.id)
+              return (
+                <label
+                  key={f.id}
+                  className={`chip ${active ? 'chip-active' : ''}`}
+                  style={active ? { backgroundColor: f.color, borderColor: f.color } : undefined}
+                  title={f.label}
+                >
+                  <input
+                    type="checkbox"
+                    className="hidden"
+                    checked={active}
+                    onChange={(e) => update(toggleRowFlag(row.recordId, f.id, e.target.checked))}
+                  />
+                  {f.symbol}
+                </label>
+              )
+            })}
+          </div>
+        </td>
+      )}
 
       <td className={cell}>
         <div className="flex items-center gap-1">
@@ -185,7 +209,7 @@ export default function CrRow({ row, index, customCols }) {
           <button
             className="rounded-lg px-2 py-1 text-[15px] text-ink-muted transition-colors hover:bg-red-50 hover:text-red-600"
             title="Delete row"
-            onClick={() => update(deleteRow(row.recordId))}
+            onClick={() => undoable(deleteRow(row.recordId), `Row "${row.name || 'untitled'}" deleted`)}
           >
             ×
           </button>

@@ -1,5 +1,5 @@
 import { TABLE, supabase } from '../lib/supabase'
-import { migrateProject, migrateRow } from './initialState'
+import { applyStatusRedirects, migrateProject, migrateRow } from './initialState'
 
 /**
  * Shared persistence, entity by entity.
@@ -35,6 +35,7 @@ export function entitiesToState(rows, fallback) {
   })
 
   if (!projects.length) return null // empty workspace: let the caller seed it
+  applyStatusRedirects(projects, crData)
 
   return {
     projects,
@@ -143,7 +144,7 @@ export function applyRemoteChange(draft, change) {
       draft.crData = draft.crData.filter((r) => r.recordId !== id)
       return
     }
-    const migrated = migrateRow(data)
+    const migrated = applyStatusRedirects(draft.projects, [migrateRow(data)])[0]
     const i = draft.crData.findIndex((r) => r.recordId === id)
     if (i >= 0) draft.crData[i] = migrated
     else draft.crData.push(migrated)
