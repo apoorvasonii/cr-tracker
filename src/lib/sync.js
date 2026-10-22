@@ -9,6 +9,7 @@ import {
   stableFallbackId,
   VENDOR_NAME,
   actionLabelOf,
+  noteStatusChange,
 } from './model'
 
 /**
@@ -129,7 +130,7 @@ export function applySyncToProject(crData, proj, headers, rows) {
     ['action', 'Next Action On'],
     ['planned', 'Planned End Date'],
     ['brdDateCol', 'BRD Date'],
-    ['movedDateCol', 'Moved to Current Status'],
+    ['movedDateCol', 'Last Action Date'],
     ['idColumn', 'Unique ID'],
   ].forEach(([key, label]) => {
     const col = m[key]
@@ -257,7 +258,9 @@ export function applySyncToProject(crData, proj, headers, rows) {
 
     if (existing) {
       claimed.add(existing.recordId)
+      const prevSection = existing.section
       upsertRecord(existing, incoming)
+      noteStatusChange(proj, existing, prevSection, 'sheet')
       updated++
     } else {
       crData.push(makeNewRecord(proj.id, sourceRecordId, recordId, incoming))
@@ -357,7 +360,7 @@ const PREVIEW_FIELDS = [
   ['action', 'Next Action On'],
   ['planned', 'Planned End Date'],
   ['brdDate', 'BRD Date'],
-  ['movedDate', 'Moved to Status'],
+  ['movedDate', 'Last Action Date'],
 ]
 
 /**

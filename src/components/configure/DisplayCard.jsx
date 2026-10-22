@@ -7,6 +7,24 @@ const UNITS = [
   { id: 'days', label: 'Days' },
 ]
 
+function Toggle({ options, value, onChange }) {
+  return (
+    <div className="flex h-10 items-center gap-0.5 rounded-lg border border-line bg-slate-50 p-0.5">
+      {options.map((o) => (
+        <button
+          key={o.id}
+          onClick={() => onChange(o.id)}
+          className={`h-8 rounded-md px-3 text-[12px] font-semibold transition-colors ${
+            value === o.id ? 'bg-white text-ink shadow-card' : 'text-ink-muted hover:text-ink-soft'
+          }`}
+        >
+          {o.label}
+        </button>
+      ))}
+    </div>
+  )
+}
+
 /** Per-project presentation choices — what the Briefing prints, not what it measures. */
 export default function DisplayCard() {
   const { currentProject, update } = useApp()
@@ -25,19 +43,7 @@ export default function DisplayCard() {
             weeks simply divides by five and rounds.
           </p>
         </div>
-        <div className="flex h-10 items-center gap-0.5 rounded-lg border border-line bg-slate-50 p-0.5">
-          {UNITS.map((o) => (
-            <button
-              key={o.id}
-              onClick={() => update(setOverallAgeUnit(o.id))}
-              className={`h-8 rounded-md px-3 text-[12px] font-semibold transition-colors ${
-                unit === o.id ? 'bg-white text-ink shadow-card' : 'text-ink-muted hover:text-ink-soft'
-              }`}
-            >
-              {o.label}
-            </button>
-          ))}
-        </div>
+        <Toggle options={UNITS} value={unit} onChange={(id) => update(setOverallAgeUnit(id))} />
       </div>
     </ConfigCard>
   )

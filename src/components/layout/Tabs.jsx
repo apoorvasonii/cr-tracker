@@ -1,6 +1,7 @@
 const TABS = [
   { id: 'entry', label: 'Tracker' },
   { id: 'mail', label: 'Briefing' },
+  { id: 'delivered', label: 'Delivered' },
   { id: 'config', label: 'Configure' },
 ]
 

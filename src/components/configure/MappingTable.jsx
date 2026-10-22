@@ -12,7 +12,7 @@ const SOURCE_FIELDS = [
   { field: 'action', label: 'Next Action On' },
   { field: 'planned', label: 'Planned End Date' },
   { field: 'brdDateCol', label: 'BRD Date' },
-  { field: 'movedDateCol', label: 'Moved to Current Status' },
+  { field: 'movedDateCol', label: 'Last Action Date' },
   { field: 'idColumn', label: 'Unique ID' },
 ]
 

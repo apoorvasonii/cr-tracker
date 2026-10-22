@@ -1,14 +1,26 @@
+import { useState } from 'react'
 import { useApp } from '../../state/AppContext'
-import { addStatus, moveStatus, removeStatus, removeUnusedStatuses, updateStatus } from '../../state/actions'
+import { addStatus, moveStatus, moveStatusTo, removeStatus, removeUnusedStatuses, updateStatus } from '../../state/actions'
 import ConfigCard from './ConfigCard'
+import { BRIEFING_DATE_FIELDS, briefingDateField } from '../../lib/model'
 
-function OrderButtons({ position, isFirst, isLast, onMove }) {
+function OrderButtons({ position, isFirst, isLast, onMove, onGrab }) {
   const cls =
     'grid h-6 w-6 place-items-center rounded-md border border-line bg-white text-[10px] text-ink-soft ' +
     'enabled:hover:border-brand-500 enabled:hover:bg-brand-50 enabled:hover:text-brand-700 ' +
     'disabled:cursor-not-allowed disabled:opacity-30'
   return (
     <div className="flex items-center gap-1.5">
+      {/* Rows only become draggable while this handle is held, so text in the
+          row's inputs can still be selected normally. */}
+      <span
+        className="cursor-grab select-none px-0.5 text-[14px] leading-none text-ink-muted hover:text-ink active:cursor-grabbing"
+        title="Drag to reorder"
+        onMouseDown={() => onGrab(true)}
+        onMouseUp={() => onGrab(false)}
+      >
+        ⠿
+      </span>
       <span className="w-4 text-[12px] font-semibold tabular-nums text-ink-muted">{position}</span>
       <div className="flex flex-col gap-0.5">
         <button className={cls} disabled={isFirst} title="Move up" onClick={() => onMove('up')}>
@@ -25,6 +37,16 @@ function OrderButtons({ position, isFirst, isLast, onMove }) {
 export default function StatusesTable() {
   const { state, currentProject: proj, update, undoable } = useApp()
 
+  const [grabbed, setGrabbed] = useState(null) // key whose handle is held
+  const [dragging, setDragging] = useState(null) // key being dragged
+  const [overIndex, setOverIndex] = useState(null) // drop slot: insert before this index
+
+  const endDrag = () => {
+    setGrabbed(null)
+    setDragging(null)
+    setOverIndex(null)
+  }
+
   const usedKeys = new Set(state.crData.filter((r) => r.projectId === proj.id).map((r) => r.section))
   const unusedCount = proj.statusConfig.filter((s) => !usedKeys.has(s.key)).length
 
@@ -38,7 +60,7 @@ export default function StatusesTable() {
   return (
     <ConfigCard
       title="Statuses"
-      sub="Order these the way the Briefing should read — top to bottom is the order its sections appear in, and the same order fills the tracker's status dropdown and filter."
+      sub="Drag ⠿ to order these the way the Briefing should read — top to bottom is the order its sections appear in, and the same order fills the tracker's status dropdown and filter."
       action={
         <div className="flex gap-2">
           {unusedCount > 0 && (
@@ -56,7 +78,7 @@ export default function StatusesTable() {
         <thead>
           <tr>
             <th style={{ width: '9%' }}>Order</th>
-            <th style={{ width: '20%' }}>Status Label</th>
+            <th style={{ width: '17%' }}>Status Label</th>
             <th style={{ width: '7%' }}>Color</th>
             <th style={{ width: '11%' }} title="List these CRs in the Briefing you copy for email">
               List in Briefing
@@ -65,14 +87,17 @@ export default function StatusesTable() {
             <th style={{ width: '12%' }} title="Delivered work is never flagged Overdue on the tracker">
               Delivered
             </th>
-            <th style={{ width: '15%' }}>Usage</th>
+            <th style={{ width: '13%' }} title="Which date the Briefing and email show for CRs in this status">
+              Briefing Date
+            </th>
+            <th style={{ width: '8%' }}>Usage</th>
             <th style={{ width: '10%' }} />
           </tr>
         </thead>
         <tbody>
           {proj.statusConfig.length === 0 && (
             <tr>
-              <td colSpan={8} className="py-8 text-center text-ink-muted">
+              <td colSpan={9} className="py-8 text-center text-ink-muted">
                 No statuses yet — sync a sheet and they’ll be created from the values in your Status column, or add one
                 by hand.
               </td>
@@ -81,9 +106,41 @@ export default function StatusesTable() {
           {proj.statusConfig.map((s, i) => {
             const count = state.crData.filter((r) => r.projectId === proj.id && r.section === s.key).length
             return (
-              <tr key={s.key}>
+              <tr
+                key={s.key}
+                draggable={grabbed === s.key}
+                onDragStart={(e) => {
+                  e.dataTransfer.effectAllowed = 'move'
+                  setDragging(s.key)
+                }}
+                onDragOver={(e) => {
+                  if (!dragging) return
+                  e.preventDefault()
+                  const r = e.currentTarget.getBoundingClientRect()
+                  setOverIndex(e.clientY < r.top + r.height / 2 ? i : i + 1)
+                }}
+                onDrop={(e) => {
+                  e.preventDefault()
+                  if (dragging && overIndex != null) {
+                    const from = proj.statusConfig.findIndex((x) => x.key === dragging)
+                    // Removing the dragged row first shifts later slots up by one.
+                    update(moveStatusTo(dragging, overIndex > from ? overIndex - 1 : overIndex))
+                  }
+                  endDrag()
+                }}
+                onDragEnd={endDrag}
+                className={dragging === s.key ? 'opacity-40' : ''}
+                style={
+                  dragging && overIndex === i
+                    ? { boxShadow: 'inset 0 2px 0 #2f5fa8' }
+                    : dragging && overIndex === i + 1 && i === proj.statusConfig.length - 1
+                      ? { boxShadow: 'inset 0 -2px 0 #2f5fa8' }
+                      : undefined
+                }
+              >
                 <td>
                   <OrderButtons
+                    onGrab={(held) => setGrabbed(held ? s.key : null)}
                     position={i + 1}
                     isFirst={i === 0}
                     isLast={i === proj.statusConfig.length - 1}
@@ -131,6 +188,19 @@ export default function StatusesTable() {
                     checked={!!s.delivered}
                     onChange={(e) => update(updateStatus(s.key, 'delivered', e.target.checked))}
                   />
+                </td>
+                <td>
+                  <select
+                    className="field-select w-full text-[12px]"
+                    value={briefingDateField(s).id}
+                    onChange={(e) => update(updateStatus(s.key, 'briefingDate', e.target.value))}
+                  >
+                    {BRIEFING_DATE_FIELDS.map((f) => (
+                      <option key={f.id} value={f.id}>
+                        {f.label}
+                      </option>
+                    ))}
+                  </select>
                 </td>
                 <td className="text-[12px] text-ink-muted">
                   {count} CR{count === 1 ? '' : 's'}

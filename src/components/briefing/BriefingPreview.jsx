@@ -1,5 +1,5 @@
 import { useApp } from '../../state/AppContext'
-import { actionColorOf, actionLabelOf, percentBase, scopedTiles, VENDOR_NAME } from '../../lib/model'
+import { actionColorOf, actionLabelOf, briefingDateField, percentBase, scopedTiles, VENDOR_NAME } from '../../lib/model'
 import { computeAgeInState, computeOverallAge, formatPlannedShort } from '../../lib/dates'
 import { tintOf, titleOf } from '../../lib/colors'
 import {
@@ -33,6 +33,7 @@ function StatusSection({ state, group }) {
   const vendorLabel = VENDOR_NAME
   const { project, status: s, rows } = group
   const ageUnit = project.overallAgeUnit
+  const dateField = briefingDateField(s)
   const tint = tintOf(s.color)
   const title = titleOf(s.color)
 
@@ -48,14 +49,20 @@ function StatusSection({ state, group }) {
         <table>
           <thead style={{ backgroundColor: tint }}>
             <tr>
-              <th style={{ width: '30%', color: title }}>CR</th>
-              <th style={{ width: '14%', color: title }}>Status</th>
-              <th style={{ width: '12%', color: title }}>Next Action On</th>
-              <th style={{ width: '14%', color: title }}>Planned End Date</th>
-              <th style={{ width: '15%', color: title }} className="center">
+              <th style={{ width: '32%', color: title }}>CR</th>
+              <th style={{ width: '17%', color: title }} className="center">
+                Status
+              </th>
+              <th style={{ width: '13%', color: title }} className="center">
+                Next Action On
+              </th>
+              <th style={{ width: '13%', color: title }} className="center">
+                {dateField.label}
+              </th>
+              <th style={{ width: '11%', color: title }} className="center">
                 Overall Age
               </th>
-              <th style={{ width: '15%', color: title }} className="center">
+              <th style={{ width: '14%', color: title }} className="center">
                 Age in Current State
               </th>
             </tr>
@@ -78,7 +85,7 @@ function StatusSection({ state, group }) {
                     ))}
                     {r.name}
                   </td>
-                  <td>
+                  <td className="center">
                     <span className="pill" style={{ backgroundColor: s.color }}>
                       {s.label}
                     </span>
@@ -88,7 +95,10 @@ function StatusSection({ state, group }) {
                       {actionLabel}
                     </span>
                   </td>
-                  <td className={r.planned === '-' ? 'planned tbd' : 'planned'}>{formatPlannedShort(r.planned, project.dateOrder)}</td>
+                  {(() => {
+                    const shown = formatPlannedShort(r[dateField.id], project.dateOrder)
+                    return <td className={shown === '-' ? 'planned tbd' : 'planned'}>{shown}</td>
+                  })()}
                   <td className={`center overall-age${overallDisplay === '-' ? ' dash' : ''}`}>{overallDisplay}</td>
                   <td className={`center age${ageDisplay === '-' ? ' dash' : ''}`}>{ageDisplay}</td>
                 </tr>
@@ -205,7 +215,7 @@ export default function BriefingPreview() {
       ))}
 
       <div className="footer">
-        {lobLabel} · {vendorLabel} · Project Delivery Tracker · {rows.length} Actionable CRs
+        {lobLabel} · {vendorLabel} · CR Delivery Tracker
       </div>
     </div>
   )

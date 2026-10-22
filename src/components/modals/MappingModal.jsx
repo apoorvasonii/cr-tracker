@@ -55,7 +55,7 @@ const STANDARD_FIELDS = [
   },
   {
     key: 'movedDateCol',
-    label: 'Moved to Current Status',
+    label: 'Last Action Date',
     guesses: [
       'Date of last action',
       'Moved to Current Status',
@@ -207,7 +207,7 @@ export default function MappingModal({ fetched, onClose }) {
       )}
 
       <p className="text-[12px] leading-relaxed text-ink-muted">
-        Overall Age and Age in Current State are calculated from BRD Date / Moved to Current Status in business days —
+        Overall Age and Age in Current State are calculated from BRD Date / Last Action Date in business days —
         Saturdays and Sundays are excluded, and a week is five of them — so they don’t need their own mapping.
       </p>
 

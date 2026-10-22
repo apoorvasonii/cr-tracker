@@ -5,7 +5,7 @@
  */
 import { INK, LINE, MUTED, tintOf, titleOf } from './colors'
 import { computeAgeInState, computeOverallAge, formatPlannedShort } from './dates'
-import { actionColorOf, actionLabelOf, percentBase, scopedTiles } from './model'
+import { actionColorOf, actionLabelOf, briefingDateField, percentBase, scopedTiles } from './model'
 import {
   actionableLines,
   briefingRows,
@@ -98,14 +98,14 @@ export function buildEmailHtml(state) {
     <tr><td style="background-color:#2f7d8c; color:#fff; text-align:center; padding:12px; font-size:13px; font-weight:800; letter-spacing:1.5px;">ACTIONABLE POINTS</td></tr>
     <tr><td style="padding:10px 0;">
       <table role="presentation" width="100%" cellpadding="0" cellspacing="0"><tr>
-        <td style="width:${nameW}; text-align:center; vertical-align:top; padding:16px 8px;">
+        <td style="width:${nameW}; text-align:center; vertical-align:middle; padding:16px 8px;">
           <div style="font-size:12.5px; font-weight:800; color:#b3372c;">${escapeHtml(lobLabel.toUpperCase())}</div>
           <div style="font-size:24px; font-weight:800; color:#b3372c; margin-top:6px;">${clientRows.length}</div>
         </td>
         <td style="width:${listW}; vertical-align:middle; padding:14px 14px; border-left:1px solid ${LINE}; border-right:1px solid ${LINE};">
           ${breakdownLines(clientLines.map((l) => [l.label, l.count]))}
         </td>
-        <td style="width:${nameW}; text-align:center; vertical-align:top; padding:16px 8px;">
+        <td style="width:${nameW}; text-align:center; vertical-align:middle; padding:16px 8px;">
           <div style="font-size:12.5px; font-weight:800; color:#2f5fa8;">${escapeHtml(vendorLabel.toUpperCase())}</div>
           <div style="font-size:24px; font-weight:800; color:#2f5fa8; margin-top:6px;">${vendorRows.length}</div>
         </td>
@@ -114,7 +114,7 @@ export function buildEmailHtml(state) {
         </td>
         ${
           hasBoth
-            ? `<td style="width:14%; text-align:center; vertical-align:top; padding:16px 8px;">
+            ? `<td style="width:14%; text-align:center; vertical-align:middle; padding:16px 8px;">
           <div style="font-size:12.5px; font-weight:800; color:#6a5a9a;">${escapeHtml(`${lobLabel} + ${vendorLabel}`.toUpperCase())}</div>
           <div style="font-size:24px; font-weight:800; color:#6a5a9a; margin-top:6px;">${bothRows.length}</div>
         </td>
@@ -133,19 +133,22 @@ export function buildEmailHtml(state) {
     const tint = tintOf(s.color)
     const title = titleOf(s.color)
     const heading = escapeHtml(s.label.toUpperCase())
+    // Fixed column widths, shared with the preview: left to size themselves, every
+    // status table split its columns differently and the sections didn't line up.
+    // Long CR names wrap onto a second line instead of pushing the columns over.
     const th = `padding:10px 14px; font-size:10.5px; font-weight:800; letter-spacing:0.6px; color:${title}; text-transform:uppercase;`
 
     html += `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border:1px solid ${LINE}; border-radius:10px; margin-bottom:18px; ${F}">
       <tr><td style="background-color:#ffffff; text-align:center; padding:14px; font-size:14px; font-weight:800; letter-spacing:1.2px; color:${title}; border-bottom:1px solid ${LINE};">${heading} &mdash; ${groupRows.length} ITEM${groupRows.length > 1 ? 'S' : ''}</td></tr>
       <tr><td>
-        <table role="presentation" width="100%" cellpadding="0" cellspacing="0">
+        <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="table-layout:fixed;">
           <tr style="background-color:${tint};">
-            <th align="left" style="${th}">CR</th>
-            <th align="center" style="${th}">Status</th>
-            <th align="center" style="${th}">Next Action On</th>
-            <th align="center" style="${th}">Planned End Date</th>
-            <th align="center" style="${th}">Overall Age</th>
-            <th align="center" style="${th}">Age in Current State</th>
+            <th align="left" width="32%" style="${th}">CR</th>
+            <th align="center" width="17%" style="${th}">Status</th>
+            <th align="center" width="13%" style="${th}">Next Action On</th>
+            <th align="center" width="13%" style="${th}">${escapeHtml(briefingDateField(s).label)}</th>
+            <th align="center" width="11%" style="${th}">Overall Age</th>
+            <th align="center" width="14%" style="${th}">Age in Current State</th>
           </tr>`
 
     groupRows.forEach((r, idx) => {
@@ -157,7 +160,7 @@ export function buildEmailHtml(state) {
       const border = idx < groupRows.length - 1 ? `border-bottom:1px solid ${LINE};` : ''
       const overallDisplay = computeOverallAge(r, p.overallAgeUnit)
       const ageDisplay = computeAgeInState(r)
-      const plannedDisplay = formatPlannedShort(r.planned, p.dateOrder)
+      const plannedDisplay = formatPlannedShort(r[briefingDateField(s).id], p.dateOrder)
       const isDashPlanned = plannedDisplay === '-'
       const actionColor = actionColorOf(p, r.action)
       const actionLabel = actionLabelOf(p, r.action)
@@ -179,7 +182,7 @@ export function buildEmailHtml(state) {
     html += `<div style="padding:6px 4px 14px; font-size:11.5px; font-style:italic; color:#7a7568; ${F}"><span style="color:${escapeHtml(f.color)};font-weight:800;">${escapeHtml(f.symbol)}</span> ${escapeHtml(f.note)}</div>`
   })
 
-  html += `<div style="text-align:center; padding:14px; color:${MUTED}; font-size:11.5px; ${F}">${escapeHtml(lobLabel)} &middot; ${escapeHtml(vendorLabel)} &middot; Project Delivery Tracker &middot; ${rows.length} Actionable CRs</div>`
+  html += `<div style="text-align:center; padding:14px; color:${MUTED}; font-size:11.5px; ${F}">${escapeHtml(lobLabel)} &middot; ${escapeHtml(vendorLabel)} &middot; CR Delivery Tracker</div>`
   html += `</div>`
   return html
 }

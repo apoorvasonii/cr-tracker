@@ -1,4 +1,5 @@
 import { normalize, simpleHash, slugifyId, slugifyStatus } from './strings'
+import { todayIso } from './dates'
 
 /** Fields a user edit can override, and that a sync will otherwise overwrite. */
 export const OVERRIDABLE_FIELDS = ['name', 'section', 'action', 'planned', 'overall', 'age', 'brdDate', 'movedDate']
@@ -28,9 +29,78 @@ export const HIDEABLE_COLUMNS = [
   { id: 'planned', label: 'Planned End Date' },
   { id: 'uatDate', label: 'UAT Date' },
   { id: 'brdDate', label: 'BRD Date' },
-  { id: 'movedDate', label: 'Moved to Status' },
+  { id: 'movedDate', label: 'Last Action Date' },
   { id: 'flags', label: 'Flags' },
 ]
+
+/** The date column the Briefing and email print, chosen per status. */
+export const BRIEFING_DATE_FIELDS = [
+  { id: 'planned', label: 'Planned End Date' },
+  { id: 'uatDate', label: 'UAT Date' },
+]
+
+export const briefingDateField = (status) =>
+  BRIEFING_DATE_FIELDS.find((f) => f.id === (status && status.briefingDate)) || BRIEFING_DATE_FIELDS[0]
+
+/* ---------------- Delivery history ---------------- */
+
+const isDeliveredKey = (proj, key) => !!(proj.statusConfig.find((s) => s.key === key) || {}).delivered
+
+/**
+ * Logs a CR entering a Delivered status (e.g. Live), or leaving one again.
+ * The log lives on the project, not the row, so it survives the row being
+ * deleted or swept by a sync. `source` is 'tracker' or 'sheet'.
+ */
+export function noteStatusChange(proj, row, prevKey, source) {
+  if (prevKey === row.section) return
+  const wasDelivered = isDeliveredKey(proj, prevKey)
+  const isDelivered = isDeliveredKey(proj, row.section)
+  if (wasDelivered === isDelivered) return
+  proj.deliveryLog = proj.deliveryLog || []
+  if (isDelivered) {
+    const status = proj.statusConfig.find((s) => s.key === row.section)
+    proj.deliveryLog.push({
+      id: 'dl' + Math.random().toString(36).slice(2, 10),
+      recordId: row.recordId,
+      name: row.name,
+      statusLabel: status.label,
+      at: todayIso(),
+      source,
+    })
+  } else {
+    const open = [...proj.deliveryLog].reverse().find((e) => e.recordId === row.recordId && !e.revertedAt)
+    if (open) open.revertedAt = todayIso()
+  }
+}
+
+/**
+ * Everything this project has delivered, newest first. CRs already sitting in a
+ * Delivered status from before the log existed are included too, dated by their
+ * Last Action Date (marked `estimated`).
+ */
+export function deliveryHistory(proj, crData) {
+  const log = proj.deliveryLog || []
+  const rows = crData.filter((r) => r.projectId === proj.id)
+  const byId = new Map(rows.map((r) => [r.recordId, r]))
+  const logged = new Set(log.filter((e) => !e.revertedAt).map((e) => e.recordId))
+  const entries = log.map((e) => {
+    const row = byId.get(e.recordId)
+    return { ...e, name: row ? row.name : e.name, deleted: !row }
+  })
+  rows
+    .filter((r) => isDeliveredKey(proj, r.section) && !logged.has(r.recordId))
+    .forEach((r) => {
+      entries.push({
+        id: 'est-' + r.recordId,
+        recordId: r.recordId,
+        name: r.name,
+        statusLabel: (proj.statusConfig.find((s) => s.key === r.section) || {}).label,
+        at: r.movedDate || '',
+        estimated: true,
+      })
+    })
+  return entries.sort((a, b) => (b.at || '').localeCompare(a.at || ''))
+}
 
 /** Where a manually added CR starts, if the project still has it. */
 export const DEFAULT_NEW_CR_STATUS = 'Under Salescode Review'

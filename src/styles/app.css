@@ -56,7 +56,7 @@
 .briefing .status-heading .title { font-size: 15px; font-weight: 800; letter-spacing: 1.6px; text-transform: uppercase; }
 
 .briefing .table-card { background: var(--card); border-radius: 0 0 12px 12px; overflow: hidden; border: 1px solid var(--line); border-top: none; box-shadow: var(--shadow-sm); }
-.briefing .table-card table { width: 100%; border-collapse: collapse; }
+.briefing .table-card table { width: 100%; border-collapse: collapse; table-layout: fixed; }
 .briefing .table-card thead th { font-size: 10.5px; font-weight: 800; letter-spacing: 0.8px; text-transform: uppercase; text-align: left; padding: 12px 18px; border-bottom: 2px solid var(--line); }
 .briefing .table-card tbody td { padding: 13px 18px; font-size: 13px; border-bottom: 1px solid var(--line); vertical-align: middle; }
 .briefing .table-card tbody tr:last-child td { border-bottom: none; }

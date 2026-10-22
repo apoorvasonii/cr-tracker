@@ -14,6 +14,7 @@ import {
   makeProject,
   makeStatusFromLabel,
   mapSheetStatusToProjectStatus,
+  noteStatusChange,
 } from '../lib/model'
 import { normalize, sequentialId, slugifyStatus, uid } from '../lib/strings'
 import { todayIso } from '../lib/dates'
@@ -85,6 +86,15 @@ export const moveStatus = (key, direction) =>
     if (from < 0 || to < 0 || to >= proj.statusConfig.length) return
     const [moved] = proj.statusConfig.splice(from, 1)
     proj.statusConfig.splice(to, 0, moved)
+  })
+
+/** Drag and drop: puts the status at `toIndex` in the list. */
+export const moveStatusTo = (key, toIndex) =>
+  withCurrentProject((proj) => {
+    const from = proj.statusConfig.findIndex((s) => s.key === key)
+    if (from < 0 || from === toIndex) return
+    const [moved] = proj.statusConfig.splice(from, 1)
+    proj.statusConfig.splice(Math.max(0, Math.min(toIndex, proj.statusConfig.length)), 0, moved)
   })
 
 export const removeStatus = (key) =>
@@ -309,12 +319,13 @@ export const updateRow = (recordId, field, value) =>
   })
 
 /**
- * A status change stamps "moved to current status" with today and clears Planned
+ * A status change stamps Last Action Date with today and clears Planned
  * End Date: that date is when the *current* status should end, so the old one no
  * longer applies and the BA sets a fresh one.
  */
-function moveRowToStatus(row, key) {
-  const changed = row.section !== key
+function moveRowToStatus(draft, row, key) {
+  const prev = row.section
+  const changed = prev !== key
   row.section = key
   row.movedDate = todayIso()
   row.overrides = row.overrides || {}
@@ -324,9 +335,12 @@ function moveRowToStatus(row, key) {
     row.planned = '-'
     row.overrides.planned = true
   }
+  const proj = getProjectById(draft.projects, row.projectId)
+  if (proj) noteStatusChange(proj, row, prev, 'tracker')
 }
 
-export const updateRowSection = (recordId, value) => withRow(recordId, (row) => moveRowToStatus(row, value))
+export const updateRowSection = (recordId, value) =>
+  withRow(recordId, (row, draft) => moveRowToStatus(draft, row, value))
 
 /**
  * Tracker-only projects have no sheet to learn statuses from, so their vocabulary
@@ -345,7 +359,7 @@ export const addStatusForRow = (recordId, label) => (draft) => {
   const status = existing || makeStatusFromLabel(trimmed, proj.statusConfig)
   if (!existing) proj.statusConfig.push(status)
 
-  moveRowToStatus(row, status.key)
+  moveRowToStatus(draft, row, status.key)
 }
 
 export const updateCustomFieldValue = (recordId, columnId, value) =>

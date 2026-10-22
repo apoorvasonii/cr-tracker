@@ -5,6 +5,7 @@ import Toast from './components/ui/Toast'
 import ConfigureView from './views/ConfigureView'
 import TrackerView from './views/TrackerView'
 import BriefingView from './views/BriefingView'
+import DeliveredView from './views/DeliveredView'
 
 export default function App() {
   const [tab, setTab] = useState('entry')
@@ -33,6 +34,7 @@ export default function App() {
       <main className="mx-auto w-full max-w-[1760px] space-y-4 px-6 py-5">
         {tab === 'entry' && <TrackerView />}
         {tab === 'mail' && <BriefingView />}
+        {tab === 'delivered' && <DeliveredView />}
         {tab === 'config' && <ConfigureView />}
       </main>
 
