@@ -24,15 +24,17 @@ function escapeHtml(s) {
     .replace(/"/g, '&quot;')
 }
 
-function statCell(n, pct, rawLabel, color, isLast) {
+function statCell(n, pct, rawLabel, color, isLast, width = '') {
   // Labels can originate in sheet text (status names), so escape here rather than
   // trusting every call site.
   const label = escapeHtml(rawLabel)
   const border = isLast ? '' : `border-right:1px solid ${LINE};`
   const pctHtml =
     pct !== null ? `<span style="font-size:12px; font-weight:600; color:${MUTED}; margin-left:4px;">(${pct}%)</span>` : ''
-  return `<td align="center" style="padding:18px 6px; ${border}">
-    <div style="font-size:24px; font-weight:800; color:${color};">${n}${pctHtml}</div>
+  // Equal widths: with many tiles, long labels wrap onto a second line instead
+  // of stretching their tile and squeezing the rest.
+  return `<td align="center" ${width ? `width="${width}"` : ''} style="padding:18px 6px; vertical-align:top; ${border}">
+    <div style="font-size:24px; font-weight:800; color:${color}; white-space:nowrap;">${n}${pctHtml}</div>
     <div style="font-size:10px; font-weight:700; letter-spacing:0.6px; color:${MUTED}; margin-top:5px;">${label}</div>
   </td>`
 }
@@ -61,7 +63,14 @@ export function buildEmailHtml(state) {
   const base = percentBase(tiles)
   const tileCells = tiles
     .map((t, idx) =>
-      statCell(t.value, t.showPercent ? pctOf(t.value, base) : null, t.label.toUpperCase(), t.color, idx === tiles.length - 1)
+      statCell(
+        t.value,
+        t.showPercent ? pctOf(t.value, base) : null,
+        t.label.toUpperCase(),
+        t.color,
+        idx === tiles.length - 1,
+        `${(100 / tiles.length).toFixed(2)}%`
+      )
     )
     .join('')
 
@@ -81,7 +90,7 @@ export function buildEmailHtml(state) {
   html += `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border:1px solid ${LINE}; border-radius:10px; margin-bottom:14px; ${F}">
     <tr><td style="background-color:#2f7d8c; color:#fff; text-align:center; padding:12px; font-size:13px; font-weight:800; letter-spacing:1.5px;">OVERALL STATUS</td></tr>
     <tr><td>
-      <table role="presentation" width="100%" cellpadding="0" cellspacing="0"><tr>
+      <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="table-layout:fixed;"><tr>
         ${tileCells || statCell('—', null, 'NO TILES CONFIGURED', INK, true)}
       </tr></table>
     </td></tr>

@@ -84,8 +84,9 @@ export function deliveryHistory(proj, crData) {
   const byId = new Map(rows.map((r) => [r.recordId, r]))
   const logged = new Set(log.filter((e) => !e.revertedAt).map((e) => e.recordId))
   const entries = log.map((e) => {
-    const row = byId.get(e.recordId)
-    return { ...e, name: row ? row.name : e.name, deleted: !row }
+    // Manual entries (delivered outside the tracker) have no row to look up.
+    const row = e.recordId ? byId.get(e.recordId) : null
+    return { ...e, name: row ? row.name : e.name, deleted: !!e.recordId && !row }
   })
   rows
     .filter((r) => isDeliveredKey(proj, r.section) && !logged.has(r.recordId))
@@ -136,7 +137,6 @@ export function makeMetric(overrides = {}) {
     source: 'statuses',
     statusKeys: [],
     value: 0,
-    hidden: false,
     showPercent: true,
     ...overrides,
   }
@@ -415,14 +415,17 @@ export function metricValue(state, proj, metric) {
 }
 
 export function projectTiles(state, proj) {
-  // A hidden tile keeps its label, colour and definition; it just doesn't print.
-  return (proj.overallMetrics || []).filter((m) => !m.hidden).map((m) => ({
-    key: m.id,
-    label: m.label,
-    color: m.color,
-    showPercent: m.showPercent !== false,
-    value: metricValue(state, proj, m),
-  }))
+  // Tiles counting nothing are left out automatically, except the first: it's
+  // the base every other tile's percentage is read against.
+  return (proj.overallMetrics || [])
+    .map((m) => ({
+      key: m.id,
+      label: m.label,
+      color: m.color,
+      showPercent: m.showPercent !== false,
+      value: metricValue(state, proj, m),
+    }))
+    .filter((t, i) => i === 0 || t.value !== 0)
 }
 
 /** Tiles for the project being viewed. */

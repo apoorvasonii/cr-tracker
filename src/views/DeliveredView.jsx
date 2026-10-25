@@ -1,5 +1,8 @@
 import { useMemo, useState } from 'react'
 import { useApp } from '../state/AppContext'
+import { addManualDelivery, removeDelivery } from '../state/actions'
+import { todayIso } from '../lib/dates'
+import ExportButton from '../components/ui/ExportButton'
 import { deliveryHistory } from '../lib/model'
 import { parseDateValue } from '../lib/dates'
 
@@ -16,9 +19,19 @@ const dayLabel = (iso) => {
   return d ? `${d.getDate()} ${MONTHS[d.getMonth()]} ${d.getFullYear()}` : '—'
 }
 
-/** Every CR this project has taken into a Delivered status, grouped by month. */
+/** Every CR this project has taken live (a Delivered status), grouped by month. */
 export default function DeliveredView() {
-  const { state, currentProject: proj } = useApp()
+  const { state, currentProject: proj, update, undoable } = useApp()
+  const [adding, setAdding] = useState(false)
+  const [draft, setDraft] = useState({ name: '', at: todayIso(), note: '' })
+
+  const saveDraft = (e) => {
+    e.preventDefault()
+    if (!draft.name.trim() || !draft.at) return
+    update(addManualDelivery(draft))
+    setDraft({ name: '', at: draft.at, note: '' }) // keep the date: past items often come in batches
+    setMonth('all')
+  }
   const [month, setMonth] = useState('all')
   const [showReverted, setShowReverted] = useState(false)
 
@@ -35,10 +48,7 @@ export default function DeliveredView() {
     <div className="card">
       <div className="flex flex-wrap items-center gap-3 border-b border-line px-5 py-4">
         <div className="mr-auto">
-          <h2 className="text-[15px] font-semibold text-ink">Delivered CRs</h2>
-          <p className="text-[12.5px] text-ink-muted">
-            Every CR moved into a status marked Delivered (Configure → Statuses), with the day it happened.
-          </p>
+          <h2 className="text-[15px] font-semibold text-ink">Live CRs</h2>
         </div>
         {revertedCount > 0 && (
           <label className="flex items-center gap-2 text-[12.5px] text-ink-soft">
@@ -46,6 +56,10 @@ export default function DeliveredView() {
             Show {revertedCount} moved back out
           </label>
         )}
+        <ExportButton />
+        <button className="btn-primary" onClick={() => setAdding((a) => !a)}>
+          {adding ? 'Close' : '+ Add Live CR'}
+        </button>
         <select className="field-select" value={month} onChange={(e) => setMonth(e.target.value)}>
           <option value="all">All months ({entries.length})</option>
           {months.map((m) => (
@@ -56,9 +70,46 @@ export default function DeliveredView() {
         </select>
       </div>
 
+      {adding && (
+        <form onSubmit={saveDraft} className="flex flex-wrap items-end gap-3 border-b border-line bg-slate-50/70 px-5 py-4">
+          <label className="flex min-w-[260px] flex-1 flex-col gap-1 text-[12px] font-semibold text-ink-soft">
+            What went live
+            <input
+              autoFocus
+              className="field"
+              placeholder="e.g. Scheme upload revamp"
+              value={draft.name}
+              onChange={(e) => setDraft({ ...draft, name: e.target.value })}
+            />
+          </label>
+          <label className="flex flex-col gap-1 text-[12px] font-semibold text-ink-soft">
+            Went live on
+            <input
+              type="date"
+              className="field"
+              value={draft.at}
+              max={todayIso()}
+              onChange={(e) => setDraft({ ...draft, at: e.target.value })}
+            />
+          </label>
+          <label className="flex min-w-[200px] flex-1 flex-col gap-1 text-[12px] font-semibold text-ink-soft">
+            Note (optional)
+            <input
+              className="field"
+              placeholder="e.g. handled over email, no CR raised"
+              value={draft.note}
+              onChange={(e) => setDraft({ ...draft, note: e.target.value })}
+            />
+          </label>
+          <button type="submit" className="btn-primary" disabled={!draft.name.trim() || !draft.at}>
+            Add
+          </button>
+        </form>
+      )}
+
       {groups.length === 0 && (
         <p className="px-5 py-14 text-center text-[13px] text-ink-muted">
-          Nothing delivered yet. CRs appear here when they move into a Delivered status such as Live.
+          Nothing live yet. CRs appear here when they move into a Delivered status such as Live.
         </p>
       )}
 
@@ -76,6 +127,7 @@ export default function DeliveredView() {
                   <td className="w-[160px] px-3 py-2.5 text-ink-soft">{e.statusLabel}</td>
                   <td className="w-[300px] px-5 py-2.5 text-right text-[11.5px] text-ink-muted">
                     {[
+                      e.source === 'manual' && e.note,
                       e.estimated && 'date from Last Action Date',
                       e.source === 'sheet' && 'from sheet sync',
                       e.revertedAt && `moved back out ${dayLabel(e.revertedAt)}`,
@@ -83,6 +135,15 @@ export default function DeliveredView() {
                     ]
                       .filter(Boolean)
                       .join(' · ')}
+                    {e.source === 'manual' && (
+                      <button
+                        className="ml-2 rounded px-1.5 text-[14px] text-ink-muted hover:bg-red-50 hover:text-red-600"
+                        title="Remove this item"
+                        onClick={() => undoable(removeDelivery(e.id), `"${e.name}" removed from history`)}
+                      >
+                        ×
+                      </button>
+                    )}
                   </td>
                 </tr>
               ))}

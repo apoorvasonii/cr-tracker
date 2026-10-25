@@ -140,7 +140,7 @@ export default function BriefingPreview() {
 
       <div className="panel">
         <div className="panel-head">Overall Status</div>
-        <div className="overall-grid" style={{ gridTemplateColumns: `repeat(${Math.max(tiles.length, 1)},1fr)` }}>
+        <div className="overall-grid" style={{ gridTemplateColumns: `repeat(${Math.max(tiles.length, 1)},minmax(0,1fr))` }}>
           {tiles.length === 0 && (
             <div className="cell">
               <div className="n">—</div>

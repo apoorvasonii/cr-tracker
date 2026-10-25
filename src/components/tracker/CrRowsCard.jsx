@@ -12,6 +12,7 @@ import {
 import FilterDropdown from './FilterDropdown'
 import CrRow from './CrRow'
 import AddColumnModal from '../modals/AddColumnModal'
+import ExportButton from '../ui/ExportButton'
 
 function HeaderCell({ label, width, onRemove, removeTitle, align }) {
   return (
@@ -189,6 +190,7 @@ export default function CrRowsCard() {
                 ))}
               </select>
             )}
+            <ExportButton />
             <button className="btn" onClick={() => setAddColumnOpen(true)}>
               + Column
             </button>

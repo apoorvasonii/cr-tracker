@@ -80,8 +80,8 @@ function DefinitionCell({ metric, proj, update }) {
 export default function OverallMetricsTable() {
   const { state, currentProject: proj, update } = useApp()
   const metrics = proj.overallMetrics || []
-  // Percentages are read against the first tile that actually prints.
-  const baseId = metrics.find((m) => !m.hidden)?.id
+  // Percentages are read against the first tile, which always prints.
+  const baseId = metrics[0]?.id
 
   return (
     <div className="card p-5">
@@ -92,6 +92,7 @@ export default function OverallMetricsTable() {
             Every tile in the Briefing’s Overall Status panel — Total, Live, In Pipeline and any others — is defined
             the same way: set <b className="font-semibold">Counts</b> to “Chosen statuses” to say exactly which statuses
             it adds up. The <b className="font-semibold">first tile is the base</b> for the percentages on the rest.
+            Tiles that count 0 CRs are left out of the Briefing automatically.
           </p>
         </div>
         <button className="btn btn-sm" onClick={() => update(addOverallMetric())}>
@@ -106,11 +107,8 @@ export default function OverallMetricsTable() {
             <th style={{ width: '17%' }}>Tile Label</th>
             <th style={{ width: '6%' }}>Color</th>
             <th style={{ width: '14%' }}>Counts</th>
-            <th style={{ width: '35%' }}>Definition</th>
-            <th style={{ width: '7%' }} title="Uncheck to keep the tile configured but leave it out of the Briefing">
-              Show
-            </th>
-            <th style={{ width: '7%' }} title="Show this tile's value as a % of the first shown tile">
+            <th style={{ width: '42%' }}>Definition</th>
+            <th style={{ width: '7%' }} title="Show this tile's value as a % of the first tile">
               Show %
             </th>
             <th style={{ width: '7%' }}>Now</th>
@@ -120,7 +118,7 @@ export default function OverallMetricsTable() {
         <tbody>
           {metrics.length === 0 && (
             <tr>
-              <td colSpan={9} className="py-8 text-center text-ink-muted">
+              <td colSpan={8} className="py-8 text-center text-ink-muted">
                 No tiles — the Briefing’s Overall Status panel will be empty. Add one to start.
               </td>
             </tr>
@@ -128,7 +126,7 @@ export default function OverallMetricsTable() {
           {metrics.map((m, i) => {
             const isBase = m.id === baseId
             return (
-            <tr key={m.id} className={m.hidden ? 'opacity-45' : undefined}>
+            <tr key={m.id}>
               <td>
                 <OrderButtons
                   position={i + 1}
@@ -173,22 +171,24 @@ export default function OverallMetricsTable() {
                 <input
                   type="checkbox"
                   className="h-4 w-4 accent-brand-600"
-                  title="Show this tile in the Briefing and the email"
-                  checked={!m.hidden}
-                  onChange={(e) => update(updateOverallMetric(m.id, 'hidden', !e.target.checked))}
-                />
-              </td>
-              <td className="text-center">
-                <input
-                  type="checkbox"
-                  className="h-4 w-4 accent-brand-600"
                   disabled={isBase}
-                  title={isBase ? 'The first shown tile is the percentage base' : undefined}
+                  title={isBase ? 'The first tile is the percentage base' : undefined}
                   checked={!isBase && m.showPercent !== false}
                   onChange={(e) => update(updateOverallMetric(m.id, 'showPercent', e.target.checked))}
                 />
               </td>
-              <td className="text-[13px] font-semibold tabular-nums text-ink-soft">{metricValue(state, proj, m)}</td>
+              <td className="text-[13px] font-semibold tabular-nums text-ink-soft">
+                {(() => {
+                  const v = metricValue(state, proj, m)
+                  return v === 0 && !isBase ? (
+                    <span className="text-[11.5px] font-normal text-ink-muted" title="Not shown in the Briefing while it counts 0 CRs">
+                      0 · hidden
+                    </span>
+                  ) : (
+                    v
+                  )
+                })()}
+              </td>
               <td className="text-center">
                 <button
                   className="rounded-lg px-2 py-1 text-[15px] text-ink-muted hover:bg-red-50 hover:text-red-600"

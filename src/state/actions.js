@@ -307,6 +307,27 @@ export const setColumnHidden = (id, hidden) =>
     proj.hiddenColumns = hidden ? [...rest, id] : rest
   })
 
+/* ---------------- Delivery history ---------------- */
+/** Logs something delivered outside the tracker, so the history is complete. */
+export const addManualDelivery = ({ name, at, note }) =>
+  withCurrentProject((proj) => {
+    proj.deliveryLog = proj.deliveryLog || []
+    proj.deliveryLog.push({
+      id: 'dl' + uid(),
+      recordId: null,
+      name: name.trim(),
+      statusLabel: 'Live',
+      at,
+      note: (note || '').trim(),
+      source: 'manual',
+    })
+  })
+
+export const removeDelivery = (id) =>
+  withCurrentProject((proj) => {
+    proj.deliveryLog = (proj.deliveryLog || []).filter((e) => e.id !== id)
+  })
+
 /* ---------------- CR rows ---------------- */
 /** Any edit here is, by definition, a manual override. */
 export const updateRow = (recordId, field, value) =>
