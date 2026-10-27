@@ -1,10 +1,69 @@
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useApp } from '../../state/AppContext'
 import { deleteProject, selectProject } from '../../state/actions'
 import { relativeSyncTime } from '../../lib/dates'
 import { isManualProject } from '../../lib/model'
 import AddProjectModal from '../modals/AddProjectModal'
 import { removedText } from '../../lib/sync'
+
+function ProjectPicker({ projects, currentId, onSelect }) {
+  const [open, setOpen] = useState(false)
+  const ref = useRef(null)
+  const current = projects.find((p) => p.id === currentId)
+
+  useEffect(() => {
+    if (!open) return
+    const onDown = (e) => ref.current && !ref.current.contains(e.target) && setOpen(false)
+    const onKey = (e) => e.key === 'Escape' && setOpen(false)
+    document.addEventListener('mousedown', onDown)
+    document.addEventListener('keydown', onKey)
+    return () => {
+      document.removeEventListener('mousedown', onDown)
+      document.removeEventListener('keydown', onKey)
+    }
+  }, [open])
+
+  return (
+    <div ref={ref} className="relative">
+      <button
+        type="button"
+        className="field-select min-w-[190px] text-left font-semibold"
+        aria-haspopup="listbox"
+        aria-expanded={open}
+        onClick={() => setOpen((o) => !o)}
+      >
+        {current?.lobName || 'Select project'}
+      </button>
+      {open && (
+        <ul
+          role="listbox"
+          className="absolute left-0 top-full z-50 mt-1 max-h-80 min-w-full overflow-auto rounded-lg border border-line bg-white py-1 shadow-lg"
+        >
+          {projects.map((p) => {
+            const active = p.id === currentId
+            return (
+              <li key={p.id} role="option" aria-selected={active}>
+                <button
+                  type="button"
+                  className={`flex w-full items-center justify-between gap-3 whitespace-nowrap px-3 py-2 text-left text-[13px] hover:bg-slate-50 ${
+                    active ? 'font-semibold text-brand-600' : 'text-ink'
+                  }`}
+                  onClick={() => {
+                    onSelect(p.id)
+                    setOpen(false)
+                  }}
+                >
+                  {p.lobName}
+                  {active && <span aria-hidden>✓</span>}
+                </button>
+              </li>
+            )
+          })}
+        </ul>
+      )}
+    </div>
+  )
+}
 
 function SyncLine({ project }) {
   if (!project) return null
@@ -115,17 +174,11 @@ export default function TopBar({ onGoToConfig }) {
         </div>
 
         <div className="flex items-center gap-2">
-          <select
-            className="field-select min-w-[190px] font-semibold"
-            value={currentProject?.id || ''}
-            onChange={(e) => update(selectProject(e.target.value))}
-          >
-            {state.projects.map((p) => (
-              <option key={p.id} value={p.id}>
-                {p.lobName}
-              </option>
-            ))}
-          </select>
+          <ProjectPicker
+            projects={state.projects}
+            currentId={currentProject?.id}
+            onSelect={(id) => update(selectProject(id))}
+          />
           <button className="btn-icon" title="Add project" onClick={() => setAddOpen(true)}>
             +
           </button>
